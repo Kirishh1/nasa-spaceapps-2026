@@ -112,3 +112,22 @@ def observation_tile(obs_id: str, study_area: str, layer: str, z: int, x: int, y
     arr.data[...] = np.where(np.isfinite(db), db, -99)
     img.rescale(in_range=((-25.0, 0.0),))
     return Response(img.render(img_format="PNG", colormap=cmap.get("greys_r")), media_type="image/png", headers=headers)
+
+
+@router.get("/ref-tiles/{area_id}/{name}/{z}/{x}/{y}.png")
+def reference_tile(area_id: str, name: str, z: int, x: int, y: int):
+    """3-band display imagery stored with the study area's references (e.g. HLS true colour)."""
+    from backend import storage
+
+    if not name.replace("_", "").replace("-", "").isalnum():
+        raise HTTPException(404, "bad layer name")
+    p = storage.local_file(f"processed/reference/{area_id}/{name}.tif")
+    if p is None:
+        raise HTTPException(404, f"{name} not available")
+    headers = {"Cache-Control": "public, max-age=86400"}
+    try:
+        with Reader(str(p)) as r:
+            img = r.tile(x, y, z, tilesize=256, indexes=(1, 2, 3), resampling_method="bilinear")
+        return Response(img.render(img_format="PNG"), media_type="image/png", headers=headers)
+    except TileOutsideBounds:
+        return Response(_empty_png(), media_type="image/png", headers=headers)

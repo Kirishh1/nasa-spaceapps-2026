@@ -183,3 +183,12 @@ def test_db_layers_roundtrip_int16(tmp_path):
         back = np.where(raw == s.nodata, np.nan, raw * s.scales[0])
     assert np.isnan(back[0, 2])
     np.testing.assert_allclose(back[np.isfinite(a)], a[np.isfinite(a)], atol=0.006)
+
+
+def test_dilate_square():
+    from backend.processing.pipeline import _dilate
+
+    m = np.zeros((7, 7), bool)
+    m[3, 3] = True
+    d = _dilate(m, 2)
+    assert d.sum() == 25 and d[1, 1] and d[5, 5] and not d[0, 3]

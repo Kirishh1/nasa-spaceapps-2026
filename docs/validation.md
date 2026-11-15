@@ -89,3 +89,18 @@ Median measurement uncertainty is 3–5 cm.
 - **Method:** median ΔB over ESA WorldCover built-up and tree-cover pixels that are land on both dates.
 - **Case study:** 0.00 dB (IQR −0.76 to +0.81 dB), so the frames are consistent.
 - **Mixed product versions:** the 16 Oct → 9 Nov pair (1.0.11 / 1.0.20) shows −0.72 dB. That exceeds the 0.5 dB tolerance and is flagged in the app.
+
+## Full NISAR season and optical before/after (third round)
+- **Per-date validation.** Seven NISAR frames (18 Jun, 10 Sep, 22 Sep, 4 Oct, 16 Oct, 28 Oct, 9 Nov) were each mapped with the same method and scored against the nearest optical map. Optical maps were matched within ±5 days, because clear days are rare in the monsoon; the offset is shown.
+
+  | NISAR | Optical reference | F1 |
+  |---|---|---|
+  | 10 Sep | 15 Sep | 0.93 |
+  | 22 Sep | 27 Sep | 0.95 |
+  | 4 Oct | 4 Oct (same day) | 0.98 |
+  | 16 Oct | 17 Oct | 0.90 |
+  | 28 Oct | 27 Oct | 0.85 |
+- **Optical before/after (10 Sep → 16 Oct, `sylhet_recession`).** The "water receded" map agrees with optical on the *direction* of change in 93% of the 500 m cells that changed. At 100 m that drops to 54%, and pixel F1 is 0.30.
+- **No noise-based tuning.** Requiring a margin of 0.5–2 dB around the threshold before counting a change did not raise precision (≈ 0.35), so the method was left unchanged.
+- **Interpretation:** NISAR identifies the right neighbourhoods, with fuzzier edges.
+- **ICESat-2 ATL13 was checked as a second altimeter.** Only 28 Jul and 26 Aug had in-basin water returns, on different ground tracks, so no before/after comparison was possible.

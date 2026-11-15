@@ -23,6 +23,10 @@ SAR-Pulse turns real NISAR L-band radar observations into a validated surface-wa
 | **OPERA DSWx-HLS** surface water from Landsat/Sentinel-2 (NASA JPL OPERA, NASA PO.DAAC) | `OPERA_L3_DSWX-HLS_V1`, `C2617126679-POCLOUD` | **Independent validation**: cloud-free optical water maps | ✅ Used |
 | **OPERA RTC-S1** Sentinel-1 backscatter (NASA JPL OPERA, NASA ASF DAAC) | `OPERA_L2_RTC-S1_V1`, `C2777436413-ASF` | **C-band comparison**: an independent change map from a shorter wavelength | ✅ Used |
 | **SWOT LakeSP Prior, Version D** (NASA/CNES SWOT, NASA PO.DAAC) | `SWOT_L2_HR_LakeSP_prior_D`, `C3233942291-POCLOUD` | **Independent water-level evidence**: lake water-surface height and area, measured directly | ✅ Used |
+| **HLS** surface reflectance (HLSL30/HLSS30 v2.0; NASA LP DAAC) | `C2021957657-LPCLOUD`, `C2021957295-LPCLOUD` | True-colour images of clear days (15 Sep, 4 Oct, 17 Oct) for the map's "Optical photo" view | ✅ Used |
+| **SMAP** L3 Enhanced soil moisture (NASA NSIDC DAAC) | `SPL3SMP_E`, `C2938664763-NSIDC_CPRD` | Context for false positives: soil drying lowers land backscatter | ✅ Used |
+| **ASF Global 30 m HAND** (Alaska Satellite Facility) | `s3://glo-30-hand/v1/2021` | Terrain check: the basin lies a median 0.2 m above drainage | ✅ Used |
+| **ICESat-2 ATL13** inland water height (NASA NSIDC DAAC) | `C3565574351-NSIDC_CPRD` | Checked as a second altimeter; only 2 in-basin passes on different tracks, so no before/after possible | ⛔ Checked, not usable |
 | **GPM IMERG Late daily V07**. NASA GPM mission, distributed by NASA GES DISC | `GPM_3IMERGDL`, CMR collection `C2723754859-GES_DISC`, [doi:10.5067/GPM/IMERGDL/DAY/07](https://doi.org/10.5067/GPM/IMERGDL/DAY/07) | Rainfall around the acquisition dates (environmental context) | ✅ Used (season series via NASA Earthdata cloud OPeNDAP) |
 
 The case study uses these two NISAR granules (provisional collection `C2854338529-ASF`, product version 1.0.11), from NASA's ASF DAAC:
@@ -56,6 +60,9 @@ cp .env.example .env        # then set EARTHDATA_TOKEN=...  (username/password n
 .venv/bin/python scripts/opera_timeline.py    # season-long OPERA water fraction for the season chart
 .venv/bin/python scripts/fetch_swot.py        # NASA/CNES SWOT lake heights/areas (~650 MB of continent-wide files)
 .venv/bin/python scripts/fetch_rainfall.py    # NASA GPM IMERG daily rainfall via cloud OPeNDAP
+.venv/bin/python scripts/fetch_soil_moisture.py  # NASA SMAP soil moisture via cloud OPeNDAP
+.venv/bin/python scripts/fetch_context.py     # ASF HAND, WorldPop 2025, NASA HLS true colour
+.venv/bin/python scripts/nisar_season.py      # NISAR water fraction + validation for every processed frame
 
 # 5. Run (the Next.js dev server forwards /api/* to uvicorn on :8000)
 .venv/bin/uvicorn backend.api.main:app --port 8000      # API + docs at :8000/docs
@@ -169,9 +176,26 @@ data/      raw/ processed/ reference/   (git-ignored; created by the scripts)
 
 **7. The two frames are radiometrically consistent.** Buildings and trees that stayed land changed by a median of 0.00 dB between the passes, so the change is not a calibration artefact. The same check flags the mixed-version pair (16 Oct → 9 Nov, product versions 1.0.11 / 1.0.20) at -0.72 dB, beyond the 0.5 dB tolerance, and the app warns about it.
 
+**8. NISAR tracks the whole season, and optical agrees at every clear date.** Seven NISAR passes (18 Jun to 9 Nov) show open water falling steadily from 79% to 63% of the basin. Every pass with a clear optical map nearby agrees closely:
+- 2026-09-10: F1 **0.93** vs optical (2026-09-15, ±5 d)
+- 2026-09-22: F1 **0.95** vs optical (2026-09-27, ±5 d)
+- 2026-10-04: F1 **0.98** vs optical (2026-10-04, ±0 d)
+- 2026-10-16: F1 **0.90** vs optical (2026-10-17, ±1 d)
+- 2026-10-28: F1 **0.85** vs optical (2026-10-27, ±1 d)
+
+**9. Optical before/after confirms which neighbourhoods drained.** For 10 Sep → 16 Oct, both ends have clear optical maps (15 Sep, 17 Oct).
+- NISAR's "water receded" map agrees with optical on the direction of change in **93% of 500 m cells** that changed (r = 0.353).
+- At pixel level it agrees only modestly: F1 0.30, direction 54% at 100 m. NISAR finds the right areas, but exact edges differ.
+
+**10. Why it matters.** Between 18 June and 16 October:
+- **281 km² of cropland** (ESA WorldCover) came out of the water. Haor farmers prepare boro rice seedbeds as water recedes in November–December, so the map shows where planting can start.
+- About **1.26 million people** (WorldPop 2025, 100% of the basin) live within 1 km of land that drained.
+- Roughly **2.1 km³** of water left the basin. This is an order of magnitude: mean water area × SWOT level drop.
+- NASA SMAP shows soil moisture falling from 0.45 (June) to 0.23 m³/m³ (October), which is why some land backscatter also changed.
+
 **What this does not show.**
 - **No ground truth.** The references are other satellite products, not field observations, and they disagree with each other.
-- **Where exactly the water left is not confirmed pixel by pixel.** Against 4 same-orbit C-band reference pairs, the net change has the same sign, but the "water receded" pattern agrees only at F1 0.09–0.25. The C-band reference agrees with *itself* across orbits only at F1 0.37–0.60, and June is too cloudy for an optical pair. SWOT confirms that the lakes drained, not exactly where.
+- **Pixel-exact edges are not confirmed.** Neighbourhood-level change agrees with optical (point 9), but at 20 m pixels the "water receded" map agrees only modestly with optical (F1 ≈ 0.30) and weakly with the C-band reference (F1 0.09–0.25, a reference that agrees with *itself* across orbits only at F1 0.37–0.60). June is too cloudy for an optical pair.
 - **Possibly missed water.** Flooded vegetation under a canopy can look bright to L-band, and is not counted as open water.
 - **No depth.** Nothing here measures water depth.
 

@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import type { AnalysisResult } from "@/services/api";
 
-export type TourView = "water" | "change" | "delta" | "lc" | "swipe";
+export type TourView = "water" | "change" | "delta" | "lc" | "photo" | "swipe";
 
 export interface TourStep {
   title: string;
@@ -68,6 +68,17 @@ export function buildTour(r: AnalysisResult): TourStep[] {
           : ""),
       view: sc.status === "available" ? "lc" : "water",
       fold: "fold-lband",
+    });
+  }
+  const im = r.impact;
+  if (im && (im.cropland_emerged_km2 || im.people_within_1km_of_receded_water)) {
+    steps.push({
+      title: "Why it matters",
+      body: `${im.cropland_emerged_km2 ? `${Math.round(im.cropland_emerged_km2)} km² of cropland came out of the water: haor farmers prepare boro rice seedbeds as the water recedes in November–December, so this map shows where planting can start. ` : ""}` +
+        `${im.people_within_1km_of_receded_water ? `About ${(im.people_within_1km_of_receded_water / 1e6).toFixed(1)} million people live within 1 km of land that drained (WorldPop 2025). ` : ""}` +
+        `${im.volume_change_km3_approx ? `Roughly ${Math.abs(im.volume_change_km3_approx).toFixed(1)} km³ of water left the basin (order of magnitude, from NISAR area × SWOT level drop).` : ""}`,
+      view: "photo",
+      fold: "fold-impact",
     });
   }
   steps.push({

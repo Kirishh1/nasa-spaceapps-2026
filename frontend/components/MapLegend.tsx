@@ -33,6 +33,14 @@ export function MapLegend({ layers, state, order, swipe, captions }: {
   const top = order.map((id) => layers.find((l) => l.id === id)).find((l) => l && state[l.id]?.visible && !["earlier_db", "later_db"].includes(l.id))
     ?? order.map((id) => layers.find((l) => l.id === id)).find((l) => l && state[l.id]?.visible);
   if (!top) return null;
+  if (top.kind === "rgb") {
+    return (
+      <div className={box} aria-label="Map legend">
+        <p className="mb-1 text-[12px] font-semibold text-ink">{top.title}</p>
+        <p className="text-[11.5px] leading-snug text-ink-2">Natural colour from Landsat/Sentinel-2 (NASA HLS). Open water appears dark or blue-grey; vegetation green; wet soil brown. Haze and thin cloud are possible.</p>
+      </div>
+    );
+  }
   return (
     <div className={box} aria-label="Map legend">
       <p className="mb-1.5 text-[12px] font-semibold text-ink">{top.title}</p>

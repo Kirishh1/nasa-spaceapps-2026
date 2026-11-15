@@ -117,6 +117,17 @@ def preflight(study_area_id: str, earlier_id: str, later_id: str, cfg: dict) -> 
     return area, e, l, compat, le, ll
 
 
+def _dilate(mask: np.ndarray, radius_px: int) -> np.ndarray:
+    """Binary dilation by a square of the given radius using cumulative sums (no SciPy)."""
+    if radius_px <= 0:
+        return mask
+    k = 2 * radius_px + 1
+    m = np.pad(mask.astype("int32"), radius_px)
+    ii = np.zeros((m.shape[0] + 1, m.shape[1] + 1), "int64")
+    ii[1:, 1:] = m.cumsum(0).cumsum(1)
+    return (ii[k:, k:] - ii[:-k, k:] - ii[k:, :-k] + ii[:-k, :-k]) > 0
+
+
 def _days_between(a: str, b: str) -> int:
     return abs((dt.date.fromisoformat(a) - dt.date.fromisoformat(b)).days)
 
@@ -304,7 +315,8 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
                  "total_offset_days": re_r["offset_days"] + rl_r["offset_days"],
                  "water_lost": accuracy.binary_metrics(wchange == water.WATER_LOST, rew & ~rlw, ok),
                  "water_gained": accuracy.binary_metrics(wchange == water.WATER_GAINED, ~rew & rlw, ok),
-                 "cells_100m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 5)}
+                 "cells_100m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 5),
+                 "cells_500m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 25)}
         ref["change_accuracy"].append(entry)
 
     for prod in ("DSWX_HLS",):
@@ -320,7 +332,8 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
                 "total_offset_days": _days_between(de, e["date"]) + _days_between(dl, l["date"]),
                 "water_lost": accuracy.binary_metrics(wchange == water.WATER_LOST, rew & ~rlw, ok),
                 "water_gained": accuracy.binary_metrics(wchange == water.WATER_GAINED, ~rew & rlw, ok),
-                "cells_100m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 5)})
+                "cells_100m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 5),
+                "cells_500m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 25)})
 
     self_f1 = []
     for i in range(len(ref_lost)):
@@ -337,6 +350,30 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
         sw["area_agreement"] = swot.lake_area_agreement(data, sw["passes"], wmap_e == water.WATER, wmap_l == water.WATER,
                                                         pair.crs, pair.transform, px_m2 / 1e6)
     ref["swot"] = sw
+
+    step("Estimating impact (cropland, people, volume)")
+    impact: dict = {}
+    if landcover is not None:
+        lost = wchange == water.WATER_LOST
+        impact["cropland_emerged_km2"] = km2(lost & (landcover == 40))
+        impact["wetland_emerged_km2"] = km2(lost & (landcover == 90))
+        impact["note_cropland"] = ("Cropland (ESA WorldCover) that was open water on the earlier date and land on the later date. In the haors, "
+                                   "boro rice seedbeds are prepared as water recedes in November–December.")
+    pop_ref = next((r for r in refs if r["kind"] == "worldpop"), None)
+    if pop_ref and (pth := storage.local_file(pop_ref["path"])):
+        with rasterio.open(pth) as src:
+            pop = src.read(1)
+        if pop.shape == shape_hw:
+            near = _dilate(wchange == water.WATER_LOST, int(round(1000 / spacing[0])))
+            impact["people_within_1km_of_receded_water"] = int(round(float(np.nansum(pop[near & in_area]))))
+            impact["people_in_area"] = int(round(float(np.nansum(pop[in_area]))))
+            impact["population_source"] = pop_ref.get("source")
+    if sw.get("status") == "available" and sw.get("passes"):
+        dh = float(np.median([p_["median_change_m"] for p_ in sw["passes"]]))
+        mean_area = (water_info["earlier_km2"] + water_info["later_km2"]) / 2
+        impact["volume_change_km3_approx"] = round(mean_area * dh / 1000, 2)
+        impact["note_volume"] = (f"Order of magnitude only: mean open-water area ({mean_area:.0f} km²) × median SWOT lake-level change ({dh:.2f} m). "
+                                 "Assumes the haor water surface fell uniformly, which it did not exactly.")
 
     if ref["accuracy"]:
         ref["independently_validated"] = True
@@ -411,6 +448,7 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
         "uncertainty": report,
         "precipitation": precip,
         "water": water_info,
+        "impact": impact,
         "sensor_comparison": sensor_cmp,
         "layers": [n for n, *_ in layers_spec] + (["jrc_occurrence"] if occurrence is not None else [])
                   + (["lc_agreement"] if sensor_cmp["status"] == "available" else []),

@@ -12,3 +12,11 @@
 - **RCM was not obtained.** The C-band comparison uses Sentinel-1 through NASA OPERA RTC-S1 instead. It uses VV only, from a different orbit geometry and up to 4 days apart from NISAR.
 - **GPM IMERG** provides ~10 km area means from the Late Run (near-real-time) product. Late Run estimates are preliminary. Coincidence does not establish causation.
 - **Product maturity.** NISAR GCOV is early-mission data, and calibration may be refined in later product versions. The product version is recorded with every observation.
+- **Impact figures are indicative.**
+  - Cropland is from ESA WorldCover 2021, and land use changes.
+  - The population figure uses a 1 km buffer and WorldPop modelled estimates.
+  - Drained volume assumes the whole haor water surface fell by SWOT's median lake drop.
+- **Not obtained:**
+  - Bangladesh FFWC river gauges (the API needs a key from BWDB).
+  - GloFAS river discharge (needs a Copernicus account).
+  - RCM (restricted access).

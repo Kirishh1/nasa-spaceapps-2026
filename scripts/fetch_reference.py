@@ -27,6 +27,7 @@ from backend.ingestion import opera, registry  # noqa: E402
 from backend.preprocessing.georeferencing import polygon_mask  # noqa: E402
 
 MAX_DAYS = 2
+MAX_DAYS_OPTICAL = 5  # clear optical days are rare in the monsoon; the offset is recorded and shown
 MAX_DAYS_RTC = 6
 
 
@@ -59,7 +60,8 @@ def main() -> None:
         for g in grans:
             by_date.setdefault(g["date"], []).append(g)
         for d in dates:
-            cands = sorted((x for x in by_date if _days(x, d) <= MAX_DAYS), key=lambda x: _days(x, d))
+            win = MAX_DAYS_OPTICAL if product == "DSWX_HLS" else MAX_DAYS
+            cands = sorted((x for x in by_date if _days(x, d) <= win), key=lambda x: _days(x, d))
             best = None
             for x in cands:
                 urls = [u for u in (opera.layer_url(g, "_B01_WTR.tif") for g in by_date[x]) if u]
@@ -72,7 +74,7 @@ def main() -> None:
                         track = s.tags().get("RTC_TRACK_NUMBER") or s.tags().get("SPACECRAFT_NAME")
                     best = (x, wtr, cover, [g["id"] for g in by_date[x]], track)
             if best is None:
-                print(f"{product}: no reference within ±{MAX_DAYS} d of {d} with ≥{min_obs:.0%} cover")
+                print(f"{product}: no reference within ±{win} d of {d} with ≥{min_obs:.0%} cover")
             else:
                 x, wtr, cover, ids, track = best
                 rel = f"processed/reference/{a.area}/{product.lower()}_{x}.tif"

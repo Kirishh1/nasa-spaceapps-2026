@@ -188,6 +188,7 @@ export interface AnalysisResult {
     change_accuracy?: {
       product: "DSWX_S1" | "DSWX_HLS"; track: string | null; earlier_date: string; later_date: string; total_offset_days: number;
       water_lost: Metrics; water_gained: Metrics;
+      cells_500m?: { cells: number; pearson_r?: number | null; direction_agreement_where_changed?: number | null };
       cells_100m: { cells: number; pearson_r?: number | null; net_change_pred?: number; net_change_ref?: number; direction_agreement_where_changed?: number | null };
     }[];
     reference_change_self_agreement?: { pairs: number; f1_min: number; f1_max: number } | null;
@@ -211,6 +212,8 @@ export interface AnalysisResult {
   precipitation: Precipitation | null;
   sensor_comparison: SensorComparison;
   water?: WaterInfo;
+  impact?: { cropland_emerged_km2?: number; wetland_emerged_km2?: number; people_within_1km_of_receded_water?: number; people_in_area?: number;
+    population_source?: string; volume_change_km3_approx?: number; note_cropland?: string; note_volume?: string };
   layers: string[];
 }
 
@@ -224,7 +227,7 @@ export interface LegendItem {
 export interface MapLayer {
   id: string;
   title: string;
-  kind: "continuous" | "categorical";
+  kind: "continuous" | "categorical" | "rgb";
   tiles: string;
   bounds: [number, number, number, number];
   units?: string;
@@ -305,6 +308,10 @@ export const api = {
     request<{ ok: boolean; errors: Issue[]; warnings: Issue[] }>("/api/analysis/check", { method: "POST", body: JSON.stringify(req) }),
   start: (req: AnalysisRequest) => request<{ id: string; status: string }>("/api/analysis", { method: "POST", body: JSON.stringify(req) }),
   sources: (analysisId?: string) => request<SourcesResponse>(`/api/sources${analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : ""}`),
+  nisarSeason: (a: string) => request<{ status: string; series: { date: string; water_fraction: number; water_km2: number; threshold_db: number; validation: { product: string; date: string; offset_days: number; f1: number | null }[] }[] }>(`/api/study-areas/${encodeURIComponent(a)}/nisar-season`),
+  swotLevels: (a: string) => request<{ status: string; passes: { pass: string; stable_lakes: number; series: { date: string; lakes: number; median_wse_change_m: number | null }[] }[] }>(`/api/study-areas/${encodeURIComponent(a)}/swot`),
+  soilMoisture: (a: string) => request<{ status: string; series: { date: string; mean_m3m3: number | null }[] }>(`/api/study-areas/${encodeURIComponent(a)}/soil-moisture`),
+  displayLayers: (a: string) => request<{ layers: { id: string; kind: "rgb"; date: string; title: string; tiles: string }[] }>(`/api/study-areas/${encodeURIComponent(a)}/display-layers`),
   rainfall: (studyArea: string) => request<{ status: string; series: { date: string; mean_mm: number }[] }>(`/api/study-areas/${encodeURIComponent(studyArea)}/rainfall`),
   timeline: (studyArea: string) => request<{ status: string; series: TimelinePoint[] }>(`/api/study-areas/${encodeURIComponent(studyArea)}/timeline`),
   analyses: (studyArea: string) => request<StoredAnalysis[]>(`/api/analyses?study_area=${encodeURIComponent(studyArea)}`),

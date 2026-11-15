@@ -192,6 +192,20 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
           </Fold>
         )}
 
+        {result.impact && (result.impact.cropland_emerged_km2 !== undefined || result.impact.people_within_1km_of_receded_water !== undefined) && (
+          <Fold id="fold-impact" title="Why it matters" value={result.impact.cropland_emerged_km2 !== undefined ? `${km2(result.impact.cropland_emerged_km2)} km² cropland out of water` : undefined}>
+            <dl>
+              {result.impact.cropland_emerged_km2 !== undefined && <Row k="Cropland that emerged from water" v={km2(result.impact.cropland_emerged_km2)} sub="km²" />}
+              {result.impact.wetland_emerged_km2 !== undefined && <Row k="Herbaceous wetland that emerged" v={km2(result.impact.wetland_emerged_km2)} sub="km²" />}
+              {result.impact.people_within_1km_of_receded_water !== undefined && <Row k="People within 1 km of drained land" v={result.impact.people_within_1km_of_receded_water.toLocaleString()} sub={result.impact.people_in_area ? `of ${result.impact.people_in_area.toLocaleString()}` : undefined} />}
+              {result.impact.volume_change_km3_approx !== undefined && <Row k="Water volume change (approx.)" v={result.impact.volume_change_km3_approx.toFixed(1)} sub="km³" />}
+            </dl>
+            {result.impact.note_cropland && <p className="mt-2 text-[11.5px] leading-snug text-ink-3">{result.impact.note_cropland} The map shows where seedbeds can go in first.</p>}
+            {result.impact.note_volume && <p className="mt-1 text-[11.5px] leading-snug text-ink-3">{result.impact.note_volume}</p>}
+            {result.impact.population_source && <p className="mt-1 text-[11px] text-ink-3">Population: {result.impact.population_source}. Land cover: ESA WorldCover 2021.</p>}
+          </Fold>
+        )}
+
         <Fold id="fold-validation" title="Validation & confidence" value={best ? `F1 ${f(best.open_water.f1)} vs ${best.product === "DSWX_HLS" ? "optical" : "C-band"}` : "Not validated"} tone={best ? "ink" : "warn"}>
           {acc.length > 0 && (
             <>
@@ -258,6 +272,11 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
                       ? <> The C-band reference agrees with <em>itself</em> across orbits only at F1 <span className="num text-ink-2">{f(v.reference_change_self_agreement.f1_min)}–{f(v.reference_change_self_agreement.f1_max)}</span>, so it cannot settle where exactly the water left.</>
                       : null}
                     {sw?.status === "available" ? " SWOT above independently confirms that the lakes drained." : ""}
+                    {(() => {
+                      const opt = ca.find((c) => c.product === "DSWX_HLS");
+                      const d5 = opt?.cells_500m?.direction_agreement_where_changed;
+                      return opt && d5 != null ? <> Against the clear-sky optical pair ({fmtDate(opt.earlier_date)} → {fmtDate(opt.later_date)}), NISAR and optical agree on the direction of change in <span className="num text-ink-2">{Math.round(100 * d5)}%</span> of 500 m cells that changed, though less at pixel level (F1 {f(opt.water_lost.f1)}): right neighbourhoods, fuzzier edges.</> : null;
+                    })()}
                   </p>
                 );
               })()}

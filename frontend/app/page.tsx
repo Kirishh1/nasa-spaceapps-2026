@@ -20,12 +20,13 @@ const DEFAULT_CONFIG: AnalysisConfig = {
   frequency: "A", polarization: "HH", threshold_db: 3, speckle_filter: "lee", filter_size: 5, water_threshold_db: -18, water_threshold_mode: "otsu", min_region_m2: 20000,
 };
 
-type View = "water" | "change" | "delta" | "lc" | "swipe";
+type View = "water" | "change" | "delta" | "lc" | "photo" | "swipe";
 const VIEWS: { id: View; label: string; layers: string[]; hint: string; needs?: string }[] = [
   { id: "water", label: "Water change", layers: ["water_change", "later_db"], hint: "Open water that receded or appeared between the two NISAR passes", needs: "water_change" },
   { id: "change", label: "Backscatter change", layers: ["change_class", "earlier_db"], hint: "Pixels whose backscatter moved more than the threshold" },
   { id: "delta", label: "ΔB", layers: ["delta_db"], hint: "Continuous change in dB, blue = darker, red = brighter" },
   { id: "lc", label: "L vs C band", layers: ["lc_agreement", "later_db"], hint: "Where NISAR L-band and Sentinel-1 C-band change maps agree or disagree", needs: "lc_agreement" },
+  { id: "photo", label: "Optical photo", layers: ["@photo"], hint: "Natural-colour NASA HLS image (Landsat/Sentinel-2) from the clear day closest to the later radar pass", needs: "@photo" },
   { id: "swipe", label: "Before / after", layers: [], hint: "Drag the divider across the two radar frames" },
 ];
 
@@ -79,7 +80,7 @@ export default function Workspace() {
     setView(v);
     if (v === "swipe") { setSwipe(true); return; }
     setSwipe(false);
-    const on = new Set(VIEWS.find((x) => x.id === v)?.layers ?? []);
+    const on = new Set((VIEWS.find((x) => x.id === v)?.layers ?? []).map((id) => (id === "@photo" ? photoIdRef.current ?? "" : id)));
     setLayerState((st) => Object.fromEntries(Object.keys(st).map((id) => [id, { ...st[id], visible: on.has(id) }])));
   }, []);
 
@@ -164,9 +165,17 @@ export default function Workspace() {
     setLayerState({ later_db: { visible: true, opacity: 1 }, earlier_db: { visible: false, opacity: 1 } });
   }, [previewLayers, result]);
 
+  const photoIdRef = useRef<string | null>(null);
   const finish = useCallback(async (aid: string, stored = false) => {
     const r = (await api.analysis(aid)) as AnalysisResult;
     const l = await api.layers(aid);
+    // reference imagery (NASA HLS true colour) for the "Optical photo" view
+    const disp = await api.displayLayers(r.study_area.id).catch(() => ({ layers: [] }));
+    const t = (d: string) => Date.parse(`${d}T00:00:00Z`);
+    const photo = [...disp.layers].sort((a, b) => Math.abs(t(a.date) - t(r.later.date)) - Math.abs(t(b.date) - t(r.later.date)))[0];
+    photoIdRef.current = photo?.id ?? null;
+    l.layers.push(...disp.layers.map((d) => ({ id: d.id, title: d.title, kind: "rgb" as const, tiles: d.tiles, bounds: r.grid.bounds_lonlat,
+      description: "Natural-colour reflectance from NASA's Harmonized Landsat Sentinel-2 product (display only)" })));
     setStoredAt(stored ? r.created_at : null);
     setConfig({ ...DEFAULT_CONFIG, ...(r.config as AnalysisConfig) });
     const startView: View = l.layers.some((x) => x.id === "water_change") ? "water" : "change";
@@ -176,7 +185,7 @@ export default function Workspace() {
     setLayers(l.layers);
     const on = new Set(VIEWS.find((v) => v.id === startView)?.layers ?? []);
     setLayerState(Object.fromEntries(l.layers.map((x) => [x.id, { visible: on.has(x.id), opacity: 1 }])));
-    setLayerOrder(PLY_ORDER.filter((id) => l.layers.some((x) => x.id === id)));
+    setLayerOrder([...PLY_ORDER.filter((id) => l.layers.some((x) => x.id === id)), ...l.layers.filter((x) => x.kind === "rgb").map((x) => x.id)]);
     setRunning(false);
     setStage(null);
   }, []);
@@ -276,7 +285,7 @@ export default function Workspace() {
           <div className="flex flex-wrap items-center gap-2 py-1.5">
             {result ? (
               <div className="flex rounded-[3px] border border-rule p-0.5" role="radiogroup" aria-label="Map view">
-                {VIEWS.filter((v) => !v.needs || layers.some((x) => x.id === v.needs)).map((v) => (
+                {VIEWS.filter((v) => !v.needs || (v.needs === "@photo" ? layers.some((x) => x.kind === "rgb") : layers.some((x) => x.id === v.needs))).map((v) => (
                   <button key={v.id} type="button" role="radio" aria-checked={view === v.id} title={v.hint} onClick={() => applyView(v.id)}
                     className={`rounded-[2px] px-2.5 py-1 text-[12px] ${view === v.id ? "bg-marker font-semibold text-marker-ink" : "text-ink-2 hover:text-ink"}`}>
                     {v.label}
