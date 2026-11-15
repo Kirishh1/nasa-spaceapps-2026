@@ -166,3 +166,20 @@ def test_otsu_and_water_change():
     ch = w.water_change(e, later)
     assert (ch[:10][e[:10] == w.WATER] == w.WATER_LOST).all()
     assert (ch[10:][e[10:] == w.WATER] == w.PERSISTENT_WATER).all()
+
+
+def test_db_layers_roundtrip_int16(tmp_path):
+    import rasterio
+    from rasterio.transform import from_origin
+
+    from backend.processing.pipeline import _write_cog
+
+    a = np.array([[-12.345, 0.0, np.nan], [3.21, -25.0, 7.777]], dtype="float32")
+    p = tmp_path / "x.tif"
+    _write_cog(p, a, from_origin(500000, 4000000, 20, 20), "EPSG:32646", np.nan, db=True)
+    with rasterio.open(p) as s:
+        assert s.dtypes[0] == "int16" and s.scales[0] == pytest.approx(0.01)
+        raw = s.read(1)
+        back = np.where(raw == s.nodata, np.nan, raw * s.scales[0])
+    assert np.isnan(back[0, 2])
+    np.testing.assert_allclose(back[np.isfinite(a)], a[np.isfinite(a)], atol=0.006)

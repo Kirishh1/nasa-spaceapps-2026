@@ -48,7 +48,7 @@ def tile(aid: str, layer: str, z: int, x: int, y: int):
                     rgba[:, data == v] = np.array(c, dtype="uint8")[:, None]
                 rgba[:, img.mask == 0] = 0
                 return Response(render(rgba, img_format="PNG"), media_type="image/png", headers=headers)
-            img = r.tile(x, y, z, tilesize=256, resampling_method="bilinear")
+            img = r.tile(x, y, z, tilesize=256, resampling_method="bilinear", unscale=True)
             if layer == "jrc_occurrence":
                 img.array.mask |= img.array.data == 0
             img.rescale(in_range=(spec["rescale"],))
@@ -77,6 +77,8 @@ def pixel(aid: str, lon: float = Query(...), lat: float = Query(...)):
                 continue
             v = src.read(1, window=((row, row + 1), (col, col + 1)))[0, 0]
             nod = src.nodata
+            if src.scales and src.scales[0] not in (None, 1.0) and nod is not None and v != nod:
+                v = np.float32(v) * np.float32(src.scales[0])
             if (isinstance(nod, float) and np.isnan(nod) and np.isnan(v)) or (nod is not None and not np.isnan(nod) and v == nod):
                 out["values"][layer] = None
             else:

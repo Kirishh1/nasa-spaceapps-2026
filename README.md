@@ -16,13 +16,14 @@ SAR-Pulse turns real NISAR L-band radar observations into a validated surface-wa
 
 | NASA resource | Identifier | What SAR-Pulse uses it for | Status |
 |---|---|---|---|
-| **NISAR L2 GCOV**, Geocoded Polarimetric Covariance (Validated, V1). NASA–ISRO mission, distributed by NASA's ASF DAAC | `NISAR_L2_GCOV_V1`, CMR collection [`C3622241360-ASF`](https://cmr.earthdata.nasa.gov/search/concepts/C3622241360-ASF.html) | **Primary data.** All radar frames, change maps, statistics and potential-inundation flags are computed from these L-band observations | ✅ Used |
+| **NISAR L2 GCOV**, Geocoded Polarimetric Covariance (V1). NASA–ISRO mission, distributed by NASA's ASF DAAC | Provisional [`C2854338529-ASF`](https://cmr.earthdata.nasa.gov/search/concepts/C2854338529-ASF.html) (Jun–Oct frames) and validated [`C3622241360-ASF`](https://cmr.earthdata.nasa.gov/search/concepts/C3622241360-ASF.html) (late Oct–Nov) | **Primary data.** All radar frames, change maps, statistics and potential-inundation flags are computed from these L-band observations | ✅ Used |
 | **NASA Common Metadata Repository (CMR)** | [cmr.earthdata.nasa.gov/search](https://cmr.earthdata.nasa.gov/search/) | Finds NISAR acquisitions over the study area: dates, track, frame, polarizations, footprints, download and QA links | ✅ Used |
 | **NASA Earthdata Login** | [urs.earthdata.nasa.gov](https://urs.earthdata.nasa.gov/) | Authenticates the NISAR downloads | ✅ Used |
 | **OPERA DSWx-S1** surface water from Sentinel-1 (NASA JPL OPERA, NASA PO.DAAC) | `OPERA_L3_DSWX-S1_V1`, `C2949811996-POCLOUD` | **Independent validation**: radar-based water maps one day after each NISAR pass | ✅ Used |
 | **OPERA DSWx-HLS** surface water from Landsat/Sentinel-2 (NASA JPL OPERA, NASA PO.DAAC) | `OPERA_L3_DSWX-HLS_V1`, `C2617126679-POCLOUD` | **Independent validation**: cloud-free optical water maps | ✅ Used |
 | **OPERA RTC-S1** Sentinel-1 backscatter (NASA JPL OPERA, NASA ASF DAAC) | `OPERA_L2_RTC-S1_V1`, `C2777436413-ASF` | **C-band comparison**: an independent change map from a shorter wavelength | ✅ Used |
-| **GPM IMERG Late daily V07**. NASA GPM mission, distributed by NASA GES DISC | `GPM_3IMERGDL`, CMR collection `C2723754859-GES_DISC`, [doi:10.5067/GPM/IMERGDL/DAY/07](https://doi.org/10.5067/GPM/IMERGDL/DAY/07) | Rainfall around the acquisition dates (environmental context) | ⚠️ Integrated; NASA GES DISC did not serve data to this deployment, so rainfall is shown as unavailable |
+| **SWOT LakeSP Prior, Version D** (NASA/CNES SWOT, NASA PO.DAAC) | `SWOT_L2_HR_LakeSP_prior_D`, `C3233942291-POCLOUD` | **Independent water-level evidence**: lake water-surface height and area, measured directly | ✅ Used |
+| **GPM IMERG Late daily V07**. NASA GPM mission, distributed by NASA GES DISC | `GPM_3IMERGDL`, CMR collection `C2723754859-GES_DISC`, [doi:10.5067/GPM/IMERGDL/DAY/07](https://doi.org/10.5067/GPM/IMERGDL/DAY/07) | Rainfall around the acquisition dates (environmental context) | ✅ Used (season series via NASA Earthdata cloud OPeNDAP) |
 
 The case study uses these two NISAR granules (provisional collection `C2854338529-ASF`, product version 1.0.11), from NASA's ASF DAAC:
 - `NISAR_L2_PR_GCOV_023_069_A_014_4005_DHDH_A_20260618T232135_20260618T232210_P05023_N_F_J_001` (18 Jun 2026)
@@ -50,9 +51,11 @@ cp .env.example .env        # then set EARTHDATA_TOKEN=...  (username/password n
 #    accept the PO.DAAC terms if prompted.
 # 3. Download and process the real NISAR frames (full frames, ~7 GB each; ~30 GB free disk needed)
 .venv/bin/python scripts/fetch_demo.py        # re-running skips files already in data/raw/
-# 4. Fetch NASA OPERA references (validation water maps + Sentinel-1 C-band) on the same grid
-.venv/bin/python scripts/fetch_reference.py   # about 400 MB of downloads
-.venv/bin/python scripts/opera_timeline.py    # season-long water fraction used for the season chart
+# 4. Fetch the independent references on the same grid
+.venv/bin/python scripts/fetch_reference.py   # NASA OPERA water maps, Sentinel-1 C-band, land cover (~450 MB)
+.venv/bin/python scripts/opera_timeline.py    # season-long OPERA water fraction for the season chart
+.venv/bin/python scripts/fetch_swot.py        # NASA/CNES SWOT lake heights/areas (~650 MB of continent-wide files)
+.venv/bin/python scripts/fetch_rainfall.py    # NASA GPM IMERG daily rainfall via cloud OPeNDAP
 
 # 5. Run (the Next.js dev server forwards /api/* to uvicorn on :8000)
 .venv/bin/uvicorn backend.api.main:app --port 8000      # API + docs at :8000/docs
@@ -130,7 +133,9 @@ data/      raw/ processed/ reference/   (git-ignored; created by the scripts)
 | Clear errors for missing or incompatible data | ✅ |
 | Assumptions and limitations documented | ✅ `docs/` |
 | No simulated results presented as real | ✅ Synthetic data appears only in tests |
-| GPM precipitation | ⚠️ Implemented; NASA GES DISC did not serve data to this environment |
+| GPM precipitation | ✅ Daily basin-mean series, Jun–Nov 2026 |
+| Water-level evidence | ✅ NASA/CNES SWOT lake heights and areas, per lake |
+| Calibration check | ✅ Invariant-target ΔB reported with every analysis |
 
 ## Findings: Sylhet haor wetlands, 18 June → 16 October 2026
 
@@ -155,9 +160,18 @@ data/      raw/ processed/ reference/   (git-ignored; created by the scripts)
 - Agreement is 90.8% over tree cover, but only 32.5% over herbaceous wetland and 31.5% over permanent water. There, C-band alone reports change on 62.1% and 56.6% of cells.
 - This is consistent with known physics. C-band (5.6 cm) responds strongly to centimetre-scale wind ripples on water and to emergent vegetation; L-band (24 cm) largely does not. It has not been proven for this scene.
 
+**5. An independent instrument confirms the drainage.** NASA/CNES SWOT measures lake water *height* directly.
+- Paired lake by lake between the SWOT passes closest to the NISAR dates, **every lake it observed fell**: median **-1.38 m** across 11 lakes (pass 467, 2026-06-15 → 2026-10-18) and **-1.25 m** across 9 lakes (pass 536). SWOT's measurement uncertainty is 3–5 cm.
+- Per-lake open-water area agrees between NISAR and SWOT at r = 0.848 (20 lakes). Per-lake area *change* agrees at r = 0.59 (rank ρ 0.266, so a few large lakes drive r), with the same direction for 90% of lakes.
+- Lake outlines are widened by 250 m, chosen by matching earlier-date total area, never by the change score.
+
+**6. Rainfall explains the timing.** NASA GPM IMERG basin-mean rainfall was 364 mm in June, 303 mm in July and 308 mm in August, then fell to 141 mm in September and 24 mm in October. The monsoon switched off before the drainage. This is coincidence in time, not proof of cause.
+
+**7. The two frames are radiometrically consistent.** Buildings and trees that stayed land changed by a median of 0.00 dB between the passes, so the change is not a calibration artefact. The same check flags the mixed-version pair (16 Oct → 9 Nov, product versions 1.0.11 / 1.0.20) at -0.72 dB, beyond the 0.5 dB tolerance, and the app warns about it.
+
 **What this does not show.**
 - **No ground truth.** The references are other satellite products, not field observations, and they disagree with each other.
-- **Change agreement is weak.** NISAR's "water receded" map agrees only weakly with the C-band reference's own change (F1 0.26). That reference itself jumps between 22% and 45% water from one Sentinel-1 orbit to the next within days.
+- **Where exactly the water left is not confirmed pixel by pixel.** Against 4 same-orbit C-band reference pairs, the net change has the same sign, but the "water receded" pattern agrees only at F1 0.09–0.25. The C-band reference agrees with *itself* across orbits only at F1 0.37–0.60, and June is too cloudy for an optical pair. SWOT confirms that the lakes drained, not exactly where.
 - **Possibly missed water.** Flooded vegetation under a canopy can look bright to L-band, and is not counted as open water.
 - **No depth.** Nothing here measures water depth.
 

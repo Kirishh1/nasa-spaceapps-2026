@@ -22,7 +22,7 @@ from backend import config, storage  # noqa: E402
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--analyses", nargs="*", default=["sylhet_monsoon", "sylhet_late", "sylhet_demo"], help="stored analysis ids to upload")
+    ap.add_argument("--analyses", nargs="*", default=["sylhet_monsoon", "sylhet_optical_check", "sylhet_late", "sylhet_demo"], help="stored analysis ids to upload")
     ap.add_argument("--terms", nargs="*", default=["A_HHHH"], help="processed frame layers to upload (HV is not used by default analyses)")
     ap.add_argument("--area", default="sylhet_haor")
     ap.add_argument("--dry-run", action="store_true")
@@ -56,10 +56,12 @@ def main() -> None:
     refs_path = config.REFERENCE_DIR / f"references_{a.area}.json"
     refs = json.loads(refs_path.read_text()) if refs_path.exists() else []
     for r in refs:
-        if r["kind"] == "water" or (r["date"], r["track"]) in used_cband:
+        if r["kind"] in ("water", "water_change_candidate", "jrc", "worldcover") or (r["kind"] == "cband" and (r["date"], r["track"]) in used_cband):
             files.append((r["path"], config.DATA_DIR / r["path"]))
-    extra_json = [f"reference/references_{a.area}.json", f"reference/water_timeline_{a.area}.json"]
+    extra_json = [f"reference/references_{a.area}.json", f"reference/water_timeline_{a.area}.json",
+                  f"reference/rainfall_{a.area}.json", f"reference/swot_{a.area}.json"]
 
+    files = list(dict.fromkeys(files))
     total = sum(p.stat().st_size for _, p in files)
     print(f"{len(files)} files, {total / 1e6:.1f} MB -> Blob prefix '{storage.PREFIX}/' (access={storage.ACCESS})")
     if a.dry_run:

@@ -29,3 +29,16 @@ def water_timeline(area_id: str) -> dict:
     if not text:
         return {"status": "unavailable", "series": []}
     return {"status": "available", **json.loads(text)}
+
+
+@router.get("/study-areas/{area_id}/rainfall")
+def rainfall(area_id: str) -> dict:
+    """Season-long daily basin-mean rainfall from NASA GPM IMERG (scripts/fetch_rainfall.py), if computed."""
+    import json
+
+    from backend import storage
+
+    text = storage.read_text(f"reference/rainfall_{area_id}.json")
+    if not text:
+        return {"status": "unavailable", "series": []}
+    return {"status": "available", "source": "NASA GPM IMERG Late Run daily V07", **json.loads(text)}

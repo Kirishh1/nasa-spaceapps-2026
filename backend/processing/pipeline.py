@@ -59,12 +59,24 @@ class AnalysisError(Exception):
         self.warnings = warnings or []
 
 
-def _write_cog(path: Path, arr: np.ndarray, transform, crs, nodata, tags: dict | None = None) -> None:
+DB_SCALE = 0.01      # dB layers are stored as int16 hundredths of a dB (±327 dB range, 0.01 dB precision)
+DB_NODATA = -32768
+
+
+def _write_cog(path: Path, arr: np.ndarray, transform, crs, nodata, tags: dict | None = None, db: bool = False) -> None:
+    scale = None
+    if db:  # halve storage/upload size; readers apply the scale factor (rio-tiler unscale=True)
+        a = np.where(np.isfinite(arr), np.round(arr / DB_SCALE), DB_NODATA)
+        arr, nodata, scale = np.clip(a, -32768, 32767).astype("int16"), DB_NODATA, DB_SCALE
     profile = {"driver": "COG", "dtype": str(arr.dtype), "count": 1, "width": arr.shape[1], "height": arr.shape[0],
                "crs": crs, "transform": transform, "nodata": nodata, "compress": "deflate",
+               "predictor": 2 if arr.dtype == np.int16 else 1,
                "overview_resampling": "nearest" if arr.dtype == np.uint8 else "average"}
     with rasterio.open(path, "w", **profile) as dst:
         dst.write(arr, 1)
+        if scale is not None:
+            dst.scales = (scale,)
+            dst.offsets = (0.0,)
         if tags:
             dst.update_tags(1, **{k: str(v) for k, v in tags.items()})
 
@@ -160,8 +172,23 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     step("Reading JRC water and ESA WorldCover references")
     occurrence = landcover = None
     ref_errors = []
+    refs = references.load(study_area_id)
+    if cfg["include_reference"]:
+        for r in refs:  # precomputed on this grid by scripts/fetch_reference.py (avoids remote reads at run time)
+            if r["kind"] in ("jrc", "worldcover"):
+                path = storage.local_file(r["path"])
+                if path:
+                    with rasterio.open(path) as src:
+                        arr = src.read(1)
+                    if arr.shape == shape_hw:
+                        if r["kind"] == "jrc":
+                            occurrence = arr
+                        else:
+                            landcover = arr
     if cfg["include_reference"]:
         for name, fn in (("jrc", reference_data.jrc_occurrence), ("worldcover", reference_data.worldcover)):
+            if (name == "jrc" and occurrence is not None) or (name == "worldcover" and landcover is not None):
+                continue
             try:
                 arr = fn(pair.crs, pair.transform, shape_hw)
                 if name == "jrc":
@@ -233,7 +260,6 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     ref["radiometric_stability"] = calib
 
     step("Validating water maps against NASA OPERA references")
-    refs = references.load(study_area_id)
     ref["accuracy"] = []
     ref_maps = {}
     for side, d, wm in (("earlier", e["date"], wmap_e), ("later", l["date"], wmap_l)):
@@ -263,6 +289,7 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     # change agreement against same-orbit radar reference pairs (avoids orbit-geometry differences)
     ref["change_accuracy"] = []
     pe_mask, pl_mask = wmap_e == water.WATER, wmap_l == water.WATER
+    ref_lost = []  # reference "water lost" maps per orbit, to measure how well the reference agrees with itself
     for re_r, rl_r in references.change_pairs(refs, e["date"], l["date"]):
         pe_, pl_ = storage.local_file(re_r["path"]), storage.local_file(rl_r["path"])
         if not pe_ or not pl_:
@@ -272,6 +299,7 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
         spec = OPERA_WATER["DSWX_S1"]
         ok = (wmap_e > 0) & (wmap_l > 0) & np.isin(ra, spec["valid"]) & np.isin(rb, spec["valid"])
         rew, rlw = np.isin(ra, spec["open"]), np.isin(rb, spec["open"])
+        ref_lost.append((rew & ~rlw, ok))
         entry = {"product": "DSWX_S1", "track": re_r["track"], "earlier_date": re_r["date"], "later_date": rl_r["date"],
                  "total_offset_days": re_r["offset_days"] + rl_r["offset_days"],
                  "water_lost": accuracy.binary_metrics(wchange == water.WATER_LOST, rew & ~rlw, ok),
@@ -293,6 +321,14 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
                 "water_lost": accuracy.binary_metrics(wchange == water.WATER_LOST, rew & ~rlw, ok),
                 "water_gained": accuracy.binary_metrics(wchange == water.WATER_GAINED, ~rew & rlw, ok),
                 "cells_100m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 5)})
+
+    self_f1 = []
+    for i in range(len(ref_lost)):
+        for j in range(i + 1, len(ref_lost)):
+            m = accuracy.binary_metrics(ref_lost[i][0], ref_lost[j][0], ref_lost[i][1] & ref_lost[j][1])
+            if m["f1"] is not None:
+                self_f1.append(m["f1"])
+    ref["reference_change_self_agreement"] = {"pairs": len(self_f1), "f1_min": min(self_f1), "f1_max": max(self_f1)} if self_f1 else None
 
     step("Reading SWOT lake water levels")
     sw = swot.lake_level_change(study_area_id, e["date"], l["date"])
@@ -343,7 +379,7 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     if cband_cls is not None:
         layers_spec.append(("cband_change", cband_cls, 0, "class"))
     for name, arr, nod, units in layers_spec:
-        _write_cog(out_dir / f"{name}.tif", arr.astype("float32") if units == "dB" else arr, pair.transform, pair.crs, nod, {**tags, "units": units})
+        _write_cog(out_dir / f"{name}.tif", arr.astype("float32") if units == "dB" else arr, pair.transform, pair.crs, nod, {**tags, "units": units}, db=units == "dB")
     if occurrence is not None:
         _write_cog(out_dir / "jrc_occurrence.tif", occurrence, pair.transform, pair.crs, 255, {"units": "percent"})
 
@@ -384,8 +420,12 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     if storage.is_blob():
         step("Saving results")
         # result.json last, so a listed result always has its layers
-        for f in sorted(out_dir.iterdir(), key=lambda f: f.name == "result.json"):
-            storage.upload_file(f"processed/analyses/{analysis_id}/{f.name}", f)
+        from concurrent.futures import ThreadPoolExecutor
+
+        files = [f for f in out_dir.iterdir() if f.name != "result.json"]
+        with ThreadPoolExecutor(6) as ex:
+            list(ex.map(lambda f: storage.upload_file(f"processed/analyses/{analysis_id}/{f.name}", f), files))
+        storage.upload_file(f"processed/analyses/{analysis_id}/result.json", out_dir / "result.json")
     return result
 
 

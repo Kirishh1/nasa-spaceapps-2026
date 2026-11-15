@@ -24,6 +24,7 @@ export function buildTour(r: AnalysisResult): TourStep[] {
   const opt = acc.find((a) => a.product === "DSWX_HLS");
   const s1 = acc.find((a) => a.product === "DSWX_S1" && a.side === "later");
   const sc = r.sensor_comparison;
+  const swp = r.validation.swot?.status === "available" ? r.validation.swot.passes ?? [] : [];
   const wet = (sc.by_landcover ?? []).find((x) => x.class === 90);
   const trees = (sc.by_landcover ?? []).find((x) => x.class === 10);
   const steps: TourStep[] = [
@@ -49,9 +50,10 @@ export function buildTour(r: AnalysisResult): TourStep[] {
   if (opt || s1) {
     steps.push({
       title: "Is it right?",
-      body: opt
+      body: (opt
         ? `We checked the ${day(opt.nisar_date)} water map against an independent NASA OPERA map from a cloud-free optical satellite one day later: F1 ${opt.open_water.f1?.toFixed(2)}, IoU ${opt.open_water.iou?.toFixed(2)}. Shifting the threshold by ±3 dB keeps F1 above ${Math.min(...(opt.threshold_sensitivity ?? []).map((x) => x.f1 ?? 1)).toFixed(2)}.`
-        : `We checked the water maps against independent NASA OPERA surface-water maps from within a day of each pass.`,
+        : `We checked the water maps against independent NASA OPERA surface-water maps from within a day of each pass.`) +
+        (swp.length ? ` Separately, NASA/CNES's SWOT satellite measured the lakes' water height: every lake it saw fell, by a median of ${swp.map((p) => `${Math.abs(p.median_change_m).toFixed(2)} m`).join(" and ")}.` : ""),
       view: "water",
       fold: "fold-validation",
     });

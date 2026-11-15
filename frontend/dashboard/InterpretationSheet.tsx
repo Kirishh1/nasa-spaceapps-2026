@@ -130,6 +130,8 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
   const fmtDate = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   const refName = (p: string) => (p === "DSWX_HLS" ? "optical (DSWx-HLS)" : "C-band radar (DSWx-S1)");
   const sc = result.sensor_comparison;
+  const sw = v.swot;
+  const cal = v.radiometric_stability;
 
   return (
     <div>
@@ -158,6 +160,7 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
             <span className="rounded-[2px] bg-marker px-1.5 py-px text-[10.5px] font-bold tracking-wide text-marker-ink uppercase">Checked vs NASA OPERA</span>
             <span>
               The {fmtDate(best.nisar_date)} water map matches the {refName(best.product)} map from {fmtDate(best.date)} with F1 <span className="num text-ink">{f(best.open_water.f1)}</span>, IoU <span className="num text-ink">{f(best.open_water.iou)}</span>.
+              {sw?.status === "available" && sw.passes?.length ? <> SWOT lake levels fell <span className="num text-ink">{Math.abs(sw.passes[0].median_change_m).toFixed(2)} m</span>.</> : null}
             </span>
           </>
         ) : (
@@ -220,12 +223,50 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
                   <span className="num text-ink-2">{f(Math.max(...optical.threshold_sensitivity.map((x) => x.f1 ?? 0)))}</span>.
                 </p>
               )}
-              {(v.change_accuracy ?? []).filter((c) => c.change === "water_lost").map((c) => (
-                <p key={c.product} className="mt-2 text-[11.5px] leading-snug text-ink-3">
-                  Change check: NISAR&apos;s “water receded” map agrees with the change between the two {c.product === "DSWX_HLS" ? "optical" : "C-band"} reference maps with F1 <span className="num text-ink-2">{f(c.f1)}</span>.
-                  This is weak, partly because the C-band reference itself swings between Sentinel-1 orbits (see the season chart).
+              {sw?.status === "available" && sw.passes && (
+                <div className="mt-4">
+                  <p className="label mb-1">Independent water-level check: NASA/CNES SWOT</p>
+                  <p className="mb-1.5 text-[12px] leading-relaxed text-ink-2">
+                    SWOT measures lake water <em>height</em> directly, a different quantity and instrument from every map above.
+                  </p>
+                  <dl>
+                    {sw.passes.map((p) => (
+                      <Row key={p.pass} k={`Pass ${p.pass} · ${fmtDate(p.earlier_date)} → ${fmtDate(p.later_date)} · ${p.lakes} lakes`}
+                        v={`${p.median_change_m > 0 ? "+" : ""}${p.median_change_m.toFixed(2)} m`} sub={`${Math.round(100 * p.fraction_falling)}% fell`} />
+                    ))}
+                  </dl>
+                  {sw.area_agreement?.status === "available" && (
+                    <p className="mt-1.5 text-[11.5px] leading-snug text-ink-3">
+                      Per-lake open-water area, NISAR vs SWOT ({sw.area_agreement.lakes} lakes): area r <span className="num text-ink-2">{f(sw.area_agreement.earlier_area_r)}</span>,
+                      change r <span className="num text-ink-2">{f(sw.area_agreement.change_r)}</span> (rank ρ <span className="num text-ink-2">{f(sw.area_agreement.change_spearman)}</span>),
+                      same direction for <span className="num text-ink-2">{Math.round(100 * (sw.area_agreement.same_sign_fraction ?? 0))}%</span> of lakes.
+                      Lake outlines are widened by {sw.area_agreement.outline_buffer_m} m, chosen so the earlier-date total areas match, never by the change score.
+                    </p>
+                  )}
+                </div>
+              )}
+              {(v.change_accuracy ?? []).length > 0 && (() => {
+                const ca = v.change_accuracy ?? [];
+                const f1s = ca.map((c) => c.water_lost.f1 ?? 0);
+                const sameDir = ca.filter((c) => (c.cells_100m.net_change_pred ?? 0) * (c.cells_100m.net_change_ref ?? 0) > 0).length;
+                return (
+                  <p className="mt-3 text-[11.5px] leading-snug text-ink-3">
+                    Change check: against {ca.length} reference pair{ca.length > 1 ? "s" : ""} (same Sentinel-1 orbit{ca.some((c) => c.product === "DSWX_HLS") ? ", and optical" : ""}),
+                    the net water change has the same sign in <span className="num text-ink-2">{sameDir}/{ca.length}</span>, but the pixel pattern of “water receded” agrees only weakly
+                    (F1 <span className="num text-ink-2">{f(Math.min(...f1s))}–{f(Math.max(...f1s))}</span>).
+                    {v.reference_change_self_agreement
+                      ? <> The C-band reference agrees with <em>itself</em> across orbits only at F1 <span className="num text-ink-2">{f(v.reference_change_self_agreement.f1_min)}–{f(v.reference_change_self_agreement.f1_max)}</span>, so it cannot settle where exactly the water left.</>
+                      : null}
+                    {sw?.status === "available" ? " SWOT above independently confirms that the lakes drained." : ""}
+                  </p>
+                );
+              })()}
+              {cal?.status === "available" && (
+                <p className={`mt-3 text-[11.5px] leading-snug ${cal.stable ? "text-ink-3" : "text-warn"}`}>
+                  Calibration check: buildings and trees that stayed land moved by a median of <span className="num">{cal.median_delta_db?.toFixed(2)} dB</span>
+                  {cal.stable ? ", so the two frames are radiometrically consistent." : ". That exceeds 0.5 dB, so part of the backscatter change here may be a calibration offset between product versions, not the surface."}
                 </p>
-              ))}
+              )}
               <p className="mt-2 text-[11.5px] leading-snug text-warn">{v.statement}</p>
             </>
           )}

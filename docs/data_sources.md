@@ -7,7 +7,8 @@
 | OPERA DSWx-S1 V1 (NASA JPL; NASA PO.DAAC) | Validation: radar water maps | CMR search; HTTPS download with Earthdata Login | `C2949811996-POCLOUD` |
 | OPERA DSWx-HLS V1 (NASA JPL; NASA PO.DAAC) | Validation: optical water maps | same | `C2617126679-POCLOUD` |
 | OPERA RTC-S1 V1 (NASA JPL; NASA ASF DAAC) | C-band comparison (Sentinel-1 VV) | same; requires approving the ASF app in Earthdata Login | `C2777436413-ASF` |
-| GPM IMERG daily v07 (Late `GPM_3IMERGDL`, Final `GPM_3IMERGDF`; file versions V07C/V07B) | Precipitation context | GES DISC OPeNDAP with Earthdata token. The account must authorize "NASA GESDISC DATA ARCHIVE". Requests failed (401, then connection refused) during development | doi:10.5067/GPM/IMERGDL/DAY/07 |
+| SWOT LakeSP Prior, Version D (NASA/CNES; NASA PO.DAAC) | Independent water-level and lake-area evidence | CMR search; Earthdata Login download (continent-wide shapefiles; passes 189, 230, 467, 536 cover the basin) | `C3233942291-POCLOUD` |
+| GPM IMERG daily v07 (Late `GPM_3IMERGDL`, Final `GPM_3IMERGDF`; file versions V07C/V07B) | Precipitation context | NASA Earthdata cloud OPeNDAP (`opendap.earthdata.nasa.gov`), with server-side subsetting to the basin. The legacy `gpm1.gesdisc` host refused connections from this environment | doi:10.5067/GPM/IMERGDL/DAY/07 |
 | JRC Global Surface Water v1.4 occurrence | Reference: historical water frequency | Public COG, `storage.googleapis.com/global-surface-water` | Pekel et al. 2016, Nature 540 |
 | ESA WorldCover 10 m 2021 v200 | Land-cover context, vegetation mask | Public COG, `esa-worldcover.s3.eu-central-1.amazonaws.com` | doi:10.5281/zenodo.7254221 |
 | RCM (CSA) | Originally planned C-band source | EODMS ordering | **Not obtained.** Sentinel-1 via OPERA RTC-S1 is used instead |

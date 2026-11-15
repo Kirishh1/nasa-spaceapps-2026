@@ -86,3 +86,15 @@ All parameters are exposed in the UI and stored with every result.
 - **Common grid.** Both class maps are aggregated to 100 m cells. A cell takes "decrease" or "increase" when that class covers at least 30% of its valid pixels, and is "no data" when under half of it is valid.
 - **Agreement classes.** Cells are compared as: both stable, both decrease, both increase, L-band only, C-band only, or opposite directions. These are reported overall and per ESA WorldCover land-cover class (dominant class per cell).
 - **No cross-sensor differencing.** Raw L- and C-band backscatter are never subtracted from each other.
+
+## Independent evidence and checks
+- **SWOT lake levels.** Prior Lake Database lakes in the basin from NASA/CNES SWOT LakeSP. For each pass, each lake's water-surface elevation is paired between the dates closest to the two NISAR passes (±7 days); the median change and the share of lakes falling are reported.
+  - **Per-lake area comparison.** Open-water area inside each lake outline is compared with SWOT's area.
+  - **Outline buffer.** Outlines are buffered so that NISAR's earlier-date total equals SWOT's as closely as possible. The candidates are 0, 100, 250, 500 and 1000 m, and the change scores are never used to choose.
+- **Rainfall.** NASA GPM IMERG Late daily V07, basin-mean of 0.1° cells. It is subset server-side through NASA's Earthdata cloud OPeNDAP service, fetched once per season by `scripts/fetch_rainfall.py`, and stored.
+- **Change validation.**
+  - It uses same-orbit DSWx-S1 pairs within ±6 days of each NISAR date, plus optical DSWx-HLS pairs when both dates are clear.
+  - Reported: pixel metrics for "water receded" and "water gained", and the agreement of water-fraction change on 100 m cells (Pearson r, net change, direction agreement).
+  - Also reported: the reference's agreement with itself across orbits.
+- **Radiometric stability.** Median ΔB over built-up and tree-cover pixels that are land on both dates. A value beyond ±0.5 dB flags a possible calibration offset between frames.
+- **Storage.** dB layers are written as int16 hundredths of a dB, with the GDAL scale factor set. Readers apply it, and the precision is 0.01 dB.

@@ -185,7 +185,19 @@ export interface AnalysisResult {
     };
     errors?: string[];
     accuracy?: AccuracyEntry[];
-    change_accuracy?: (Metrics & { product: string; change: "water_lost" | "water_gained" })[];
+    change_accuracy?: {
+      product: "DSWX_S1" | "DSWX_HLS"; track: string | null; earlier_date: string; later_date: string; total_offset_days: number;
+      water_lost: Metrics; water_gained: Metrics;
+      cells_100m: { cells: number; pearson_r?: number | null; net_change_pred?: number; net_change_ref?: number; direction_agreement_where_changed?: number | null };
+    }[];
+    reference_change_self_agreement?: { pairs: number; f1_min: number; f1_max: number } | null;
+    radiometric_stability?: { status: string; reason?: string; pixels?: number; median_delta_db?: number; iqr_db?: [number, number]; stable?: boolean; note?: string };
+    swot?: {
+      status: string; reason?: string; product?: string; note?: string;
+      passes?: { pass: string; earlier_date: string; later_date: string; lakes: number; median_change_m: number; p25_m: number; p75_m: number; fraction_falling: number; median_uncertainty_m: number }[];
+      area_agreement?: { status: string; lakes: number; outline_buffer_m?: number; earlier_area_r?: number | null; change_r?: number | null; change_spearman?: number | null;
+        same_sign_fraction?: number; nisar_total_change_km2?: number; swot_total_change_km2?: number; nisar_earlier_total_km2?: number; swot_earlier_total_km2?: number };
+    };
   };
   uncertainty: {
     pixel_spacing_m: number[];
@@ -293,6 +305,7 @@ export const api = {
     request<{ ok: boolean; errors: Issue[]; warnings: Issue[] }>("/api/analysis/check", { method: "POST", body: JSON.stringify(req) }),
   start: (req: AnalysisRequest) => request<{ id: string; status: string }>("/api/analysis", { method: "POST", body: JSON.stringify(req) }),
   sources: (analysisId?: string) => request<SourcesResponse>(`/api/sources${analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : ""}`),
+  rainfall: (studyArea: string) => request<{ status: string; series: { date: string; mean_mm: number }[] }>(`/api/study-areas/${encodeURIComponent(studyArea)}/rainfall`),
   timeline: (studyArea: string) => request<{ status: string; series: TimelinePoint[] }>(`/api/study-areas/${encodeURIComponent(studyArea)}/timeline`),
   analyses: (studyArea: string) => request<StoredAnalysis[]>(`/api/analyses?study_area=${encodeURIComponent(studyArea)}`),
   analysis: (id: string) => request<AnalysisResult | JobStatus>(`/api/analysis/${id}`),

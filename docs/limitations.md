@@ -6,8 +6,9 @@
 - **Thresholds are generic.** 3 dB and −18 dB are not calibrated for the Sylhet basin.
 - **Two dates per analysis.** The season chart adds context from OPERA, but NISAR itself is analysed pairwise.
 - **Geometry.** Only same-track, same-direction pairs are allowed. Incidence angle still varies across the swath, which affects interpretation but not ΔB within a pixel.
+- **Change pattern not confirmed pixel by pixel.** SWOT confirms the lakes drained and per-lake change correlates (r 0.59), but no independent reference resolves *where* water receded at 20 m (see validation.md).
 - **Validation.** It is against other satellite products (NASA OPERA DSWx), not field data. They disagree with each other, and DSWx-S1 varies strongly between Sentinel-1 orbits.
 - **Product versions.** The case-study frames are provisional (1.0.11); the October/November validated frames are 1.0.20. Pairs that mix versions are flagged with a warning.
 - **RCM was not obtained.** The C-band comparison uses Sentinel-1 through NASA OPERA RTC-S1 instead. It uses VV only, from a different orbit geometry and up to 4 days apart from NISAR.
-- **GPM IMERG** provides ~10 km area means. Late Run estimates are preliminary. Coincidence does not establish causation.
+- **GPM IMERG** provides ~10 km area means from the Late Run (near-real-time) product. Late Run estimates are preliminary. Coincidence does not establish causation.
 - **Product maturity.** NISAR GCOV is early-mission data, and calibration may be refined in later product versions. The product version is recorded with every observation.

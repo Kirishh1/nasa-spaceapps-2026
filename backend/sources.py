@@ -9,15 +9,16 @@ from __future__ import annotations
 NASA_RESOURCES = [
     {
         "id": "nisar_gcov",
-        "name": "NISAR L2 GCOV, Geocoded Polarimetric Covariance (Validated, Version 1)",
-        "short_name": "NISAR_L2_GCOV_V1",
-        "identifier": "CMR collection C3622241360-ASF",
+        "name": "NISAR L2 GCOV, Geocoded Polarimetric Covariance (Version 1: provisional and validated collections)",
+        "short_name": "NISAR_L2_GCOV",
+        "identifier": "CMR collections C2854338529-ASF (provisional, Jun–Oct 2026 frames) and C3622241360-ASF (validated, late Oct–Nov 2026)",
         "provider": "NASA–ISRO NISAR mission; distributed by NASA's Alaska Satellite Facility DAAC (ASF)",
         "role": "Primary data. Every radar frame, change map, statistic and potential-inundation flag "
                 "is computed from these L-band backscatter observations (HH and HV, frequency A).",
         "status": "used",
         "links": [
             {"label": "NASA Earthdata catalog", "url": "https://www.earthdata.nasa.gov/data/catalog/asf-nisar-l2-gcov-v1-1"},
+            {"label": "Provisional collection record", "url": "https://cmr.earthdata.nasa.gov/search/concepts/C2854338529-ASF.html"},
             {"label": "CMR collection record", "url": "https://cmr.earthdata.nasa.gov/search/concepts/C3622241360-ASF.html"},
             {"label": "NISAR mission (NASA JPL)", "url": "https://nisar.jpl.nasa.gov/"},
         ],
@@ -76,12 +77,24 @@ NASA_RESOURCES = [
         "links": [{"label": "ASF dataset", "url": "https://www.earthdata.nasa.gov/data/catalog/asf-opera-l2-rtc-s1-v1-1"}],
     },
     {
+        "id": "swot_lakesp",
+        "name": "SWOT Level 2 Lake Single-Pass Vector Prior (LakeSP, Version D)",
+        "short_name": "SWOT_L2_HR_LakeSP_prior_D",
+        "identifier": "CMR collection C3233942291-POCLOUD",
+        "provider": "NASA/CNES Surface Water and Ocean Topography mission; distributed by NASA PO.DAAC",
+        "role": "Independent water-level evidence: SWOT measures each lake's water-surface height and area directly, "
+                "so it checks the drainage finding with a different instrument and a different physical quantity.",
+        "status": "integrated",
+        "links": [{"label": "PO.DAAC dataset", "url": "https://podaac.jpl.nasa.gov/dataset/SWOT_L2_HR_LakeSP_prior_D"},
+                  {"label": "SWOT mission (NASA JPL)", "url": "https://swot.jpl.nasa.gov/"}],
+    },
+    {
         "id": "gpm_imerg",
         "name": "GPM IMERG Late Precipitation L3 1 day 0.1° × 0.1° V07",
         "short_name": "GPM_3IMERGDL",
         "identifier": "CMR collection C2723754859-GES_DISC · doi:10.5067/GPM/IMERGDL/DAY/07",
         "provider": "NASA Global Precipitation Measurement mission; distributed by NASA GES DISC",
-        "role": "Environmental context: daily area-mean rainfall around the two acquisition dates.",
+        "role": "Environmental context: daily basin-mean rainfall through the season, retrieved via NASA's Earthdata cloud OPeNDAP service.",
         "status": "integrated",
         "links": [
             {"label": "GES DISC dataset", "url": "https://disc.gsfc.nasa.gov/datasets/GPM_3IMERGDL_07/summary"},
@@ -119,6 +132,8 @@ def sources(precipitation: dict | None = None, result: dict | None = None) -> di
         if r["id"] == "opera_dswx_hls" and "DSWX_HLS" in used_refs:
             r["status"] = "used"
         if r["id"] == "opera_rtc_s1" and cband_used:
+            r["status"] = "used"
+        if r["id"] == "swot_lakesp" and ((result or {}).get("validation", {}).get("swot") or {}).get("status") == "available":
             r["status"] = "used"
         if r["id"] == "gpm_imerg":
             if precipitation and precipitation.get("status") == "available":

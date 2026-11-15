@@ -136,6 +136,16 @@ def main() -> None:
                      "observed_fraction": round(cover, 4), "granules": [g["id"] for g in gs], "path": rel})
         print(f"RTC_S1 {x} track {track}: {len(gs)} bursts, cover {cover:.0%}")
 
+    # land-cover and historical-water layers on the same grid, so analyses never read remote global tiles
+    from backend.validation import reference_data
+
+    for kind, fn, nod in (("worldcover", reference_data.worldcover, 0), ("jrc", reference_data.jrc_occurrence, 255)):
+        arr = fn(crs, transform, shape)
+        if arr is not None:
+            rel = f"processed/reference/{a.area}/{kind}.tif"
+            opera.write_cog(config.DATA_DIR / rel, arr, crs, transform, nod, {"product": kind})
+            refs.append({"kind": kind, "path": rel})
+            print(f"{kind}: written")
     storage.write_text(f"reference/references_{a.area}.json", json.dumps(refs, indent=1))
     print(f"{len(refs)} references written")
 
