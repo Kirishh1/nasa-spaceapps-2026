@@ -8,7 +8,7 @@ router = APIRouter(tags=["observations"])
 
 def _summary(o: dict, area_id: str | None) -> dict:
     processed = (o.get("processed") or {}).get(area_id, {}) if area_id else {}
-    ingested = {k: True for k, rec in processed.items() if registry.processed_layer(o, area_id, *k.split("_", 1))}
+    ingested = {k: True for k in processed if registry.has_processed_layer(o, area_id, *k.split("_", 1))}
     out = {k: o.get(k) for k in ("id", "sensor", "band", "product_type", "product_version", "date", "start_time", "end_time",
                                  "track", "frame", "stack_id", "pass_direction", "polarizations", "footprint", "size_bytes",
                                  "browse_url", "qa_report_url", "range_bandwidth_mhz")}

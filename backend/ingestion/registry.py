@@ -72,8 +72,20 @@ def upsert_observation(obs: dict) -> None:
     _save(OBSERVATIONS_REL, items)
 
 
+def has_processed_layer(obs: dict, study_area_id: str, frequency: str, term: str) -> bool:
+    """Cheap existence check (no download): used for listings."""
+    from backend import storage
+
+    rec = (obs.get("processed") or {}).get(study_area_id, {}).get(f"{frequency}_{term}")
+    if not rec:
+        return False
+    if Path(rec["path"]).is_absolute():
+        return config.resolve_data_path(rec["path"]).exists()
+    return storage.exists(rec["path"])
+
+
 def processed_layer(obs: dict, study_area_id: str, frequency: str, term: str) -> dict[str, Any] | None:
-    """Return the processed COG record for (study area, frequency, term) if it exists on disk."""
+    """Return the processed COG record for (study area, frequency, term), with a local path (downloads in Blob mode)."""
     rec = (obs.get("processed") or {}).get(study_area_id, {}).get(f"{frequency}_{term}")
     if rec:
         from backend import storage

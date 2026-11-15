@@ -104,6 +104,24 @@ def list_files(prefix: str, suffix: str = "") -> list[str]:
     return sorted(item.pathname[start:] for item in blob.query_blobs(prefix=_key(prefix)) if item.pathname.endswith(suffix))
 
 
+_listing: dict = {"at": 0.0, "keys": set()}
+
+
+def exists(rel: str, max_age_s: float = 300) -> bool:
+    """Whether ``rel`` is stored, without downloading it (Blob mode uses one cached listing per instance)."""
+    if not is_blob():
+        return _local_path(rel).exists()
+    if (CACHE_DIR / rel).exists():
+        return True
+    import time
+
+    if time.monotonic() - _listing["at"] > max_age_s:
+        start = len(PREFIX) + 1
+        _listing["keys"] = {item.pathname[start:] for item in _blob().query_blobs(prefix=f"{PREFIX}/")}
+        _listing["at"] = time.monotonic()
+    return rel in _listing["keys"]
+
+
 # ---------------------------------------------------------------- writes
 
 def write_text(rel: str, text: str) -> None:

@@ -95,3 +95,13 @@ def test_pipeline_end_to_end_in_blob_mode(setup, fake, monkeypatch):
     assert fake.puts[-1].endswith("result.json")  # written last, so listed results are complete
     assert c.get(f"/api/analysis/{aid}").json()["status"] == "complete"
     assert any(a["id"] == aid for a in c.get("/api/analyses", params={"study_area": "test"}).json())
+
+
+def test_exists_uses_listing_not_download(fake):
+    fake.store["sarpulse/processed/x.tif"] = b"abc"
+    calls = []
+    orig = fake.stream_blob
+    fake.stream_blob = lambda *a, **k: calls.append(a) or orig(*a, **k)
+    assert storage.exists("processed/x.tif") is True
+    assert storage.exists("processed/missing.tif") is False
+    assert calls == []
