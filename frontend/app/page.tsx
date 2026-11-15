@@ -209,7 +209,7 @@ export default function Workspace() {
     <div className="flex min-h-screen flex-col bg-housing-0 lg:h-screen lg:overflow-hidden">
       <header className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-rule px-4 py-2.5">
         <Wordmark />
-        <p className="text-[12.5px] text-ink-2">Reads real NASA–ISRO NISAR L-band radar frames from NASA’s Earthdata archive, measures how backscatter changed between two dates, and shows how far to trust the result.</p>
+        <p className="text-[12.5px] text-ink-2">What changed between two NASA–ISRO NISAR radar passes, and how sure we can be.</p>
         <span className="ml-auto flex items-center gap-2 text-[11.5px] text-ink-3" role="status">
           <span className={`inline-block h-2 w-2 rounded-full ${backend === "ok" ? "bg-ink-2" : backend === "down" ? "bg-error" : "border border-dashed border-ink-3"}`} aria-hidden />
           {backend === "ok" ? "Backend connected" : backend === "down" ? "Backend unreachable" : "Connecting…"}
@@ -230,9 +230,11 @@ export default function Workspace() {
             onFlyTo={(bbox) => setFlyBox({ id: "search", name: "search", bbox, geometry: { type: "Polygon", coordinates: [] } })}
           />
           {shownLayers.length > 0 && (
-            <section className="mt-7 border-t border-rule pt-4" aria-label="Map layers">
-              <h2 className="mb-1 text-[13px] font-semibold text-ink [font-stretch:108%]">Overlays on the table</h2>
-              <p className="mb-2 text-[11.5px] text-ink-3">{result ? "Stacked like acetate sheets. The top of the list is the top sheet." : "Original frames, before any processing."}</p>
+            <details className="group mt-7 border-t border-rule pt-3" aria-label="Map layers">
+              <summary className="cursor-pointer list-none text-[13px] font-semibold text-ink [font-stretch:108%] [&::-webkit-details-marker]:hidden">
+                Individual layers <span className="font-normal text-ink-3">· fine control</span>
+              </summary>
+              <p className="mt-1 mb-2 text-[11.5px] text-ink-3">{result ? "The map views above set these for you. The top of the list is drawn on top." : "Original frames, before any processing."}</p>
               <LayerPlies
                 layers={shownLayers}
                 order={result ? layerOrder : ["later_db", "earlier_db"].filter((id) => shownLayers.some((l) => l.id === id))}
@@ -241,7 +243,7 @@ export default function Workspace() {
                 onOrder={setLayerOrder}
                 swipe={swipe}
               />
-            </section>
+            </details>
           )}
         </aside>
 

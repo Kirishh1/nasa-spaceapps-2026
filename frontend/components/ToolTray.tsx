@@ -67,11 +67,14 @@ function FrameList({ label, side, observations, selected, other, onSelect, pol, 
   label: string; side: "earlier" | "later"; observations: Observation[]; selected: string | null; other: Observation | null;
   onSelect: (id: string | null) => void; pol: string; freq: string;
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const blocked = observations.filter((o) => o.id !== selected && obsBlocker(o, other, side, pol, freq));
+  const shown = showAll ? observations : observations.filter((o) => !blocked.includes(o));
   return (
     <fieldset className="mb-3">
       <legend className="label mb-1.5">{label}</legend>
       <ul className="flex flex-col gap-1" role="radiogroup" aria-label={label}>
-        {observations.map((o) => {
+        {shown.map((o) => {
           const blocker = obsBlocker(o, other, side, pol, freq);
           const isSel = selected === o.id;
           return (
@@ -106,6 +109,11 @@ function FrameList({ label, side, observations, selected, other, onSelect, pol, 
           );
         })}
       </ul>
+      {blocked.length > 0 && (
+        <button type="button" onClick={() => setShowAll(!showAll)} className="mt-1 text-[11.5px] text-ink-3 underline underline-offset-2 hover:text-ink">
+          {showAll ? "Hide" : "Show"} {blocked.length} acquisition{blocked.length > 1 ? "s" : ""} that can&apos;t be paired
+        </button>
+      )}
     </fieldset>
   );
 }
@@ -171,7 +179,12 @@ export function ToolTray(p: Props) {
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
         </select>
-        <form onSubmit={search} className="mt-2.5 flex gap-1.5" role="search">
+        <details className="group mt-2.5" open={p.drawing || !!p.drawn || undefined}>
+          <summary className="cursor-pointer list-none text-[12px] text-ink-3 hover:text-ink [&::-webkit-details-marker]:hidden">
+            <span className="underline underline-offset-2">Find a place or draw a sub-area</span>
+          </summary>
+          <div className="pt-1">
+        <form onSubmit={search} className="mt-1.5 flex gap-1.5" role="search">
           <label htmlFor="place" className="sr-only">Search for a place</label>
           <input
             id="place"
@@ -214,9 +227,17 @@ export function ToolTray(p: Props) {
             </button>
           )}
         </div>
+          </div>
+        </details>
       </Step>
 
       <Step n={2} title="Frames to compare" state={!areaDone ? "waiting" : framesDone ? "done" : "next"}>
+        <details className="group mb-3 rounded-[3px] border border-rule-soft">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-[12px] text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+            <span>Sensor</span>
+            <span className="num whitespace-nowrap text-[11.5px] text-ink">{p.sensor === "COMPARE" ? "L vs C" : p.sensor} · {pol} · freq {freq}</span>
+          </summary>
+          <div className="border-t border-rule-soft px-2.5 pt-3">
         <div className="mb-3 grid grid-cols-3 gap-1" role="radiogroup" aria-label="Sensor">
           {(["NISAR", "RCM", "COMPARE"] as Sensor[]).map((s) => {
             const disabled = s !== "NISAR" && !!p.rcmReason;
@@ -238,7 +259,7 @@ export function ToolTray(p: Props) {
             );
           })}
         </div>
-        {p.rcmReason && <p className="-mt-1.5 mb-3 text-[11px] leading-snug text-ink-3" title={p.rcmReason}>RCM (C-band): no data ingested for this area, so only NISAR can run.</p>}
+        {p.rcmReason && <p className="-mt-1.5 mb-3 text-[11px] leading-snug text-ink-3" title={p.rcmReason}>RCM (C-band) has no data here, so only NISAR can run.</p>}
 
         <div className="mb-3 grid grid-cols-2 gap-2">
           <div>
@@ -256,6 +277,8 @@ export function ToolTray(p: Props) {
           </div>
         </div>
 
+          </div>
+        </details>
         {p.obsStatus === "loading" && <p className="text-[12px] text-ink-3">Loading observations…</p>}
         {p.obsStatus === "error" && <p className="text-[12px] text-error">Could not load observations.</p>}
         {p.obsStatus === "idle" && p.observations.length === 0 && areaDone && (
@@ -264,7 +287,7 @@ export function ToolTray(p: Props) {
         {p.observations.length > 0 && (
           <>
             <p className="mb-2 text-[11px] text-ink-3">
-              <span className="num text-ink-2">{p.observations.length}</span> NISAR GCOV acquisitions in NASA CMR · <span className="num text-ink-2">{usable}</span> processed
+              {usable} of {p.observations.length} NISAR acquisitions over this area are processed and ready.
             </p>
             <FrameList label="Earlier frame" side="earlier" observations={p.observations} selected={p.earlierId} other={later} onSelect={p.onEarlier} pol={pol} freq={freq} />
             <FrameList label="Later frame" side="later" observations={p.observations} selected={p.laterId} other={earlier} onSelect={p.onLater} pol={pol} freq={freq} />
@@ -275,8 +298,8 @@ export function ToolTray(p: Props) {
       <Step n={3} title="Run change detection" state={!framesDone ? "waiting" : "next"}>
         <details className="group mb-3 rounded-[3px] border border-rule-soft">
           <summary className="flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-[12px] text-ink-2 hover:text-ink">
-            <span>Analysis settings</span>
-            <span className="num text-[11px] text-ink-3">±{p.config.threshold_db} dB · {p.config.water_threshold_db} dB · {p.config.speckle_filter} {p.config.filter_size}×{p.config.filter_size}</span>
+            <span>Settings</span>
+            <span className="num whitespace-nowrap text-[11px] text-ink-3">±{p.config.threshold_db} dB · {p.config.water_threshold_db} dB · {p.config.speckle_filter} {p.config.filter_size}×{p.config.filter_size}</span>
           </summary>
           <div className="border-t border-rule-soft px-2.5 pt-3">
             <Slider label="Change threshold |ΔB|" value={p.config.threshold_db} min={1} max={8} step={0.5} unit=" dB" onChange={(v) => p.onConfig({ ...p.config, threshold_db: v })} hint="Pixels changing less than this are classed as limited change." />
