@@ -126,3 +126,12 @@ def test_noise_reference_gaussian():
     r = noise_reference(d, cls, 3.0)
     assert r["robust_sigma_db"] == pytest.approx(1.5, rel=0.02)
     assert r["observed_exceedance_percent"] == pytest.approx(r["expected_exceedance_percent_gaussian"], abs=0.3)
+
+
+def test_data_paths_relative_and_legacy_absolute():
+    from backend import config
+
+    assert config.resolve_data_path("processed/x.tif") == config.DATA_DIR / "processed/x.tif"
+    legacy = "/Users/someone/elsewhere/data/processed/observations/a/b.tif"
+    assert config.resolve_data_path(legacy) == config.DATA_DIR / "processed/observations/a/b.tif"
+    assert config.to_data_relative(config.DATA_DIR / "processed" / "y.tif") == "processed/y.tif"

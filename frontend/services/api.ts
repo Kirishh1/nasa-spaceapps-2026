@@ -1,4 +1,5 @@
-export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+// Same-origin by default ("/api/..."); set NEXT_PUBLIC_API_URL only to point the UI at an API on another origin.
+export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
 export type Polygon = { type: "Polygon"; coordinates: number[][][] };
 
@@ -219,7 +220,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(`${API_BASE}${path}`, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
   } catch {
-    throw new ApiError(`Cannot reach the SAR-Pulse backend at ${API_BASE}. Is uvicorn running?`, 0);
+    throw new ApiError(`Cannot reach the SAR-Pulse API at ${API_BASE || "/api"}.`, 0);
   }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {

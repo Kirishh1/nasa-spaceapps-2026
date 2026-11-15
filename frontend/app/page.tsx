@@ -174,7 +174,10 @@ export default function Workspace() {
     setStage("Submitting");
     setRunErrors([]);
     try {
-      const { id } = await api.start(req);
+      setStage("Processing on the server (about 20 s)");
+      const started = await api.start(req);
+      const id = started.id;
+      if (started.status === "complete") { await finish(id); return; }
       const tick = async () => {
         try {
           const st = await api.analysis(id);
@@ -209,7 +212,7 @@ export default function Workspace() {
         <p className="text-[12.5px] text-ink-2">Reads real NISAR L-band radar frames, measures how backscatter changed between two dates, and shows how far to trust the result.</p>
         <span className="ml-auto flex items-center gap-2 text-[11.5px] text-ink-3" role="status">
           <span className={`inline-block h-2 w-2 rounded-full ${backend === "ok" ? "bg-ink-2" : backend === "down" ? "bg-error" : "border border-dashed border-ink-3"}`} aria-hidden />
-          {backend === "ok" ? "Backend connected" : backend === "down" ? "Backend unreachable · start uvicorn on :8000" : "Connecting…"}
+          {backend === "ok" ? "Backend connected" : backend === "down" ? "Backend unreachable" : "Connecting…"}
         </span>
       </header>
 

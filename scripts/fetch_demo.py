@@ -49,6 +49,7 @@ def process_area(area: dict, catalog_only: bool, max_granules: int) -> None:
                 continue
             rec = nisar.export_term_cog(h5, out_dir / f"{area['id']}_{area['frequency']}_{term}.tif", area["frequency"], term, bbox, area.get("multilook", 1))
             print(f"     {term}: {rec['shape']} px @ {rec['pixel_spacing_m']} m, EPSG:{rec['epsg']}, valid {rec['valid_fraction']:.1%}, looks~{rec['median_looks']}")
+            rec["path"] = config.to_data_relative(rec["path"])  # portable across machines / deployments
             layers[f"{area['frequency']}_{term}"] = rec
         obs = registry.get_observation(g["id"]) or g
         processed = obs.get("processed") or {}

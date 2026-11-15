@@ -9,7 +9,6 @@ from rio_tiler.colormap import cmap
 from rio_tiler.errors import TileOutsideBounds
 from rio_tiler.io import Reader
 
-from backend import config
 from backend.api.layers import LAYERS, categorical_cmap
 from backend.processing import pipeline
 
@@ -30,8 +29,8 @@ def _empty_png() -> bytes:
 def _path(aid: str, layer: str):
     if layer not in LAYERS:
         raise HTTPException(404, f"Unknown layer {layer}")
-    p = config.ANALYSES_DIR / aid / f"{layer}.tif"
-    if not p.exists():
+    p = pipeline.layer_path(aid, layer)
+    if p is None:
         raise HTTPException(404, f"Layer {layer} not available for analysis {aid}")
     return p
 
@@ -75,7 +74,10 @@ def pixel(aid: str, lon: float = Query(...), lat: float = Query(...)):
         raise HTTPException(404, f"Unknown analysis {aid}")
     out = {"lon": lon, "lat": lat, "values": {}}
     for layer in r["layers"]:
-        p = config.ANALYSES_DIR / aid / f"{layer}.tif"
+        p = pipeline.layer_path(aid, layer)
+        if p is None:
+            out["values"][layer] = None
+            continue
         with rasterio.open(p) as src:
             xs, ys = warp_transform("EPSG:4326", src.crs, [lon], [lat])
             row, col = src.index(xs[0], ys[0])

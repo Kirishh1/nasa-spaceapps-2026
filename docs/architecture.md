@@ -36,3 +36,12 @@ Next.js frontend (frontend/) — MapLibre GL JS light table, tool tray, interpre
 | `GET /api/tiles/{id}/{layer}/{z}/{x}/{y}.png` | Result tiles |
 
 Interactive OpenAPI docs are served at `http://localhost:8000/docs`.
+
+## Storage and deployment
+- `backend/storage.py` addresses all data by paths relative to the data root.
+  - **local** mode (the default) reads and writes `data/`.
+  - **blob** mode (`SARPULSE_STORAGE=blob`) uses a Vercel Blob store under the prefix `sarpulse/`. Rasters are cached in `/tmp` on first use.
+- Paths in `observations.json` are relative to the data root, so the registry is portable between machines and the store.
+- **On Vercel** (`vercel.json`): `api` (FastAPI) serves `/api/*` and `web` (Next.js) serves everything else.
+  - Analyses run synchronously inside the request.
+  - Results are uploaded to Blob with `result.json` written last.

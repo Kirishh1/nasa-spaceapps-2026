@@ -1,3 +1,6 @@
+import os
+import uuid
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -41,12 +44,24 @@ def check_analysis(req: AnalysisRequest):
     return {"ok": True, "errors": [], "warnings": compat.warnings}
 
 
+# On serverless platforms work may be frozen once a response is sent, and in-memory job state is
+# not shared between instances, so analyses run inside the request there (about 20 s).
+SYNC = bool(os.environ.get("VERCEL")) or os.environ.get("SARPULSE_SYNC_ANALYSIS") == "1"
+
+
 @router.post("/analysis", status_code=202)
 def start_analysis(req: AnalysisRequest):
     try:
         cfg, _ = _preflight(req)
     except pipeline.AnalysisError as e:
         return _reject(e)
+    if SYNC:
+        aid = uuid.uuid4().hex[:12]
+        try:
+            pipeline.run_analysis(req.study_area_id, req.earlier_id, req.later_id, cfg, analysis_id=aid, geometry=req.geometry)
+        except pipeline.AnalysisError as e:
+            return _reject(e)
+        return JSONResponse(status_code=200, content={"id": aid, "status": "complete"})
     aid = jobs.submit(req.study_area_id, req.earlier_id, req.later_id, cfg, req.geometry)
     return {"id": aid, "status": "running"}
 

@@ -23,7 +23,7 @@ PRODUCTS = [
 ]
 VERSIONS = ("V07C", "V07B")  # file-name minor versions seen on GES DISC
 BASE = "https://gpm1.gesdisc.eosdis.nasa.gov/opendap/GPM_L3/{prod}/{y}/{m}/{fname}"
-CACHE = config.REFERENCE_DIR / "gpm_cache.json"
+CACHE = config.ANALYSES_DIR.parent / "gpm_cache.json"  # ANALYSES_DIR is always writable (/tmp on Vercel)
 
 
 def _opener():
@@ -110,7 +110,10 @@ def precipitation_context(bbox, earlier_date: str, later_date: str, pad_days: in
                 return {"status": "unavailable", "reason": "GES DISC OPeNDAP returned no IMERG data for the first requested days "
                         "(server unreachable, files not yet published, or the Earthdata account lacks GES DISC authorization)."}
         d += dt.timedelta(days=1)
-    CACHE.write_text(json.dumps(cache))
+    try:
+        CACHE.write_text(json.dumps(cache))
+    except OSError:
+        pass
     if not series:
         return {"status": "unavailable", "reason": "No GPM IMERG daily files could be retrieved for this period.", "missing_days": missing}
 

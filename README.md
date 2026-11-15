@@ -16,7 +16,7 @@ Prerequisites: [uv](https://docs.astral.sh/uv/), Node ≥ 20, and a NASA Earthda
 ```bash
 # 1. Backend environment (Python 3.11; rasterio wheels bundle GDAL)
 uv venv --python 3.11 .venv
-uv pip install --python .venv -r requirements.txt
+uv pip install --python .venv -r requirements-dev.txt
 
 # 2. Credentials: create a token at https://urs.earthdata.nasa.gov → Generate Token
 cp .env.example .env        # then set EARTHDATA_TOKEN=...  (username/password not needed)
@@ -26,7 +26,7 @@ cp .env.example .env        # then set EARTHDATA_TOKEN=...  (username/password n
 # 3. Download + process the real demo granules (2 full frames, ~6.9 GB each; ~15 GB free disk needed)
 .venv/bin/python scripts/fetch_demo.py      # re-running skips files already in data/raw/
 
-# 4. Run
+# 4. Run (the Next.js dev server forwards /api/* to uvicorn on :8000)
 .venv/bin/uvicorn backend.api.main:app --port 8000      # API + docs at :8000/docs
 cd frontend && npm install && npm run dev                # UI at http://localhost:3000
 ```
@@ -45,6 +45,33 @@ The same analysis can be run headless:
 .venv/bin/python -c "from backend.processing.pipeline import run_analysis; import json; \
 r = run_analysis('sylhet_haor', '<earlier granule id>', '<later granule id>'); print(json.dumps(r['statistics'], indent=1))"
 ```
+
+## Deploying to Vercel
+
+`vercel.json` deploys two services as one Vercel project:
+
+| Service | Root | Framework | Public path |
+|---|---|---|---|
+| `api` | `.` | FastAPI (`backend.api.main:app`) | `/api/*` |
+| `web` | `frontend/` | Next.js | everything else |
+
+The browser calls the API on the same origin (`/api/...`), so the services need no bindings.
+
+Data comes from **Vercel Blob**, because `data/` is not in git:
+
+1. In the Vercel project, create a Blob store (**private** access) and connect it to the project.
+2. In the project's environment variables, set `SARPULSE_STORAGE=blob`.
+3. Locally, copy the store's `BLOB_READ_WRITE_TOKEN` into `.env`. Then, after `scripts/fetch_demo.py` has run, upload the demo data (about 180 MB):
+   ```bash
+   .venv/bin/python scripts/upload_to_blob.py --dry-run   # see what will be uploaded
+   .venv/bin/python scripts/upload_to_blob.py
+   ```
+4. Deploy with `vercel deploy`, or push to the connected Git repository.
+
+On Vercel:
+- **Runtime behaviour:** analyses run inside the request (about 20 s; the function limit is 300 s) and write to `/tmp`. Results are then uploaded to Blob, so every instance can serve their tiles. Each instance downloads the rasters it needs into a `/tmp` cache on first use.
+- **Local testing:** `vercel dev` runs both services together.
+- **Rainfall:** GPM precipitation also needs `EARTHDATA_TOKEN` set as a project environment variable.
 
 ## Tests
 ```bash

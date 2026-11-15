@@ -1,0 +1,7 @@
+.venv
+**/node_modules
+frontend/.next
+data/raw
+.pytest_cache
+**/__pycache__
+.impeccable

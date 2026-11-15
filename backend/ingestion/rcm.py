@@ -8,7 +8,6 @@ placed in data/raw/rcm/<study_area_id>/, `discover_local_rcm` will list them.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import rasterio
 

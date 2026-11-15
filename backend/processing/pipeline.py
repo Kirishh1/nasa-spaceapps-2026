@@ -12,7 +12,7 @@ import numpy as np
 import rasterio
 from rasterio.warp import transform_bounds
 
-from backend import config
+from backend import config, storage
 from backend.environmental_context.precipitation import precipitation_context
 from backend.ingestion import registry
 from backend.preprocessing import quality
@@ -216,20 +216,32 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     }
     result = registry.json_safe(result)
     (out_dir / "result.json").write_text(json.dumps(result, indent=2, default=str))
+    if storage.is_blob():
+        step("Saving results")
+        # result.json last, so a listed result always has its layers
+        for f in sorted(out_dir.iterdir(), key=lambda f: f.name == "result.json"):
+            storage.upload_file(f"processed/analyses/{analysis_id}/{f.name}", f)
     return result
 
 
 def load_result(analysis_id: str) -> dict | None:
-    p = config.ANALYSES_DIR / analysis_id / "result.json"
-    return registry.json_safe(json.loads(p.read_text())) if p.exists() else None
+    if not analysis_id.replace("_", "").replace("-", "").isalnum():
+        return None
+    text = storage.read_text(f"processed/analyses/{analysis_id}/result.json")
+    return registry.json_safe(json.loads(text)) if text else None
+
+
+def layer_path(analysis_id: str, layer: str) -> Path | None:
+    """Local path of an analysis raster (downloaded from Blob into the cache when needed)."""
+    return storage.local_file(f"processed/analyses/{analysis_id}/{layer}.tif")
 
 
 def list_results(study_area_id: str | None = None) -> list[dict]:
     """Summaries of stored analyses, newest first."""
     out = []
-    for p in config.ANALYSES_DIR.glob("*/result.json"):
+    for rel in storage.list_files("processed/analyses", "result.json"):
         try:
-            r = json.loads(p.read_text())
+            r = json.loads(storage.read_text(rel) or "")
         except Exception:  # noqa: BLE001
             continue
         if study_area_id and r.get("study_area", {}).get("id") != study_area_id:

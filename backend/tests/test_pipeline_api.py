@@ -120,3 +120,16 @@ def test_api_flow(setup):
     for lid in ("delta_db", "change_class"):
         resp = c.get(f"/api/tiles/{aid}/{lid}/{t.z}/{t.x}/{t.y}.png")
         assert resp.status_code == 200 and resp.content[:4] == b"\x89PNG"
+
+
+def test_api_sync_mode(setup, monkeypatch):
+    from backend.api.main import app
+    from backend.api.routes import analysis as route
+
+    monkeypatch.setattr(route, "SYNC", True)
+    c = TestClient(app)
+    r = c.post("/api/analysis", json={"study_area_id": "test", "earlier_id": "e", "later_id": "l", "config": CFG})
+    assert r.status_code == 200 and r.json()["status"] == "complete"
+    aid = r.json()["id"]
+    assert c.get(f"/api/analysis/{aid}").json()["status"] == "complete"
+    assert any(a["id"] == aid for a in c.get("/api/analyses", params={"study_area": "test"}).json())
