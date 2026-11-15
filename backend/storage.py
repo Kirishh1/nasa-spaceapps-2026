@@ -104,7 +104,7 @@ def list_files(prefix: str, suffix: str = "") -> list[str]:
     return sorted(item.pathname[start:] for item in blob.query_blobs(prefix=_key(prefix)) if item.pathname.endswith(suffix))
 
 
-_listing: dict = {"at": 0.0, "keys": set()}
+_listing: dict = {"at": None, "keys": set()}  # "at" is None until the first listing (monotonic clocks can start near 0)
 
 
 def exists(rel: str, max_age_s: float = 300) -> bool:
@@ -115,7 +115,7 @@ def exists(rel: str, max_age_s: float = 300) -> bool:
         return True
     import time
 
-    if time.monotonic() - _listing["at"] > max_age_s:
+    if _listing["at"] is None or time.monotonic() - _listing["at"] > max_age_s:
         start = len(PREFIX) + 1
         _listing["keys"] = {item.pathname[start:] for item in _blob().query_blobs(prefix=f"{PREFIX}/")}
         _listing["at"] = time.monotonic()

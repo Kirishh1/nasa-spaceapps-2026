@@ -97,7 +97,11 @@ def test_pipeline_end_to_end_in_blob_mode(setup, fake, monkeypatch):
     assert any(a["id"] == aid for a in c.get("/api/analyses", params={"study_area": "test"}).json())
 
 
-def test_exists_uses_listing_not_download(fake):
+def test_exists_uses_listing_not_download(fake, monkeypatch):
+    import time
+
+    monkeypatch.setattr(time, "monotonic", lambda: 5.0)  # a freshly booted instance: clock near zero
+    monkeypatch.setattr(storage, "_listing", {"at": None, "keys": set()})
     fake.store["sarpulse/processed/x.tif"] = b"abc"
     calls = []
     orig = fake.stream_blob
