@@ -24,7 +24,7 @@ from backend.comparison import cband
 from backend.ingestion import references
 from backend.processing import inundation as inu
 from backend.processing import water
-from backend.validation import accuracy
+from backend.validation import accuracy, swot
 from backend.processing.statistics import change_statistics
 from backend.validation import reference_data, validation
 
@@ -103,6 +103,10 @@ def preflight(study_area_id: str, earlier_id: str, later_id: str, cfg: dict) -> 
     if not compat.ok:
         raise AnalysisError("Observations are not compatible", compat.errors, compat.warnings)
     return area, e, l, compat, le, ll
+
+
+def _days_between(a: str, b: str) -> int:
+    return abs((dt.date.fromisoformat(a) - dt.date.fromisoformat(b)).days)
 
 
 def subarea(area: dict, geometry: dict | None) -> dict:
@@ -214,6 +218,20 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
         "later_fraction": round(float((wmap_l == water.WATER).sum() / max(1, (wmap_l > 0).sum())), 4),
     }
 
+    # radiometric stability: backscatter of built-up and tree-covered pixels that are land on both dates should not move
+    calib = {"status": "unavailable", "reason": "No land-cover reference to select invariant targets."}
+    if landcover is not None:
+        inv = np.isin(landcover, (10, 50)) & (wmap_e == water.LAND) & (wmap_l == water.LAND) & np.isfinite(delta)
+        if inv.sum() > 1000:
+            dv = delta[inv]
+            med = float(np.median(dv))
+            calib = {"status": "available", "pixels": int(inv.sum()), "median_delta_db": round(med, 2),
+                     "iqr_db": [round(float(np.percentile(dv, 25)), 2), round(float(np.percentile(dv, 75)), 2)],
+                     "stable": abs(med) <= 0.5,
+                     "note": "Median ΔB over built-up and tree-cover pixels that are land on both dates. "
+                             "A value near 0 dB means the two frames are radiometrically consistent (no calibration offset)."}
+    ref["radiometric_stability"] = calib
+
     step("Validating water maps against NASA OPERA references")
     refs = references.load(study_area_id)
     ref["accuracy"] = []
@@ -242,17 +260,48 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
                      "all_water": accuracy.binary_metrics(wm == water.WATER, np.isin(rw, spec["water"]), ok),
                      "threshold_sensitivity": sensitivity}
             ref["accuracy"].append(entry)
-    # change agreement where the same reference product exists on both dates
+    # change agreement against same-orbit radar reference pairs (avoids orbit-geometry differences)
     ref["change_accuracy"] = []
-    for prod in ("DSWX_S1", "DSWX_HLS"):
+    pe_mask, pl_mask = wmap_e == water.WATER, wmap_l == water.WATER
+    for re_r, rl_r in references.change_pairs(refs, e["date"], l["date"]):
+        pe_, pl_ = storage.local_file(re_r["path"]), storage.local_file(rl_r["path"])
+        if not pe_ or not pl_:
+            continue
+        with rasterio.open(pe_) as a_, rasterio.open(pl_) as b_:
+            ra, rb = a_.read(1), b_.read(1)
+        spec = OPERA_WATER["DSWX_S1"]
+        ok = (wmap_e > 0) & (wmap_l > 0) & np.isin(ra, spec["valid"]) & np.isin(rb, spec["valid"])
+        rew, rlw = np.isin(ra, spec["open"]), np.isin(rb, spec["open"])
+        entry = {"product": "DSWX_S1", "track": re_r["track"], "earlier_date": re_r["date"], "later_date": rl_r["date"],
+                 "total_offset_days": re_r["offset_days"] + rl_r["offset_days"],
+                 "water_lost": accuracy.binary_metrics(wchange == water.WATER_LOST, rew & ~rlw, ok),
+                 "water_gained": accuracy.binary_metrics(wchange == water.WATER_GAINED, ~rew & rlw, ok),
+                 "cells_100m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 5)}
+        ref["change_accuracy"].append(entry)
+
+    for prod in ("DSWX_HLS",):
         if ("earlier", prod) in ref_maps and ("later", prod) in ref_maps:
-            (re_, oke), (rl_, okl) = ref_maps[("earlier", prod)], ref_maps[("later", prod)]
+            (ra, oka), (rb, okb) = ref_maps[("earlier", prod)], ref_maps[("later", prod)]
             spec = OPERA_WATER[prod]
-            ok = oke & okl
-            rew, rlw = np.isin(re_, spec["open"]), np.isin(rl_, spec["open"])
-            for label, pred, truth in (("water_lost", wchange == water.WATER_LOST, rew & ~rlw),
-                                       ("water_gained", wchange == water.WATER_GAINED, ~rew & rlw)):
-                ref["change_accuracy"].append({"product": prod, "change": label, **accuracy.binary_metrics(pred, truth, ok)})
+            ok = oka & okb
+            rew, rlw = np.isin(ra, spec["open"]), np.isin(rb, spec["open"])
+            de = next(x["date"] for x in ref["accuracy"] if x["product"] == prod and x["side"] == "earlier")
+            dl = next(x["date"] for x in ref["accuracy"] if x["product"] == prod and x["side"] == "later")
+            ref["change_accuracy"].insert(0, {
+                "product": prod, "track": None, "earlier_date": de, "later_date": dl,
+                "total_offset_days": _days_between(de, e["date"]) + _days_between(dl, l["date"]),
+                "water_lost": accuracy.binary_metrics(wchange == water.WATER_LOST, rew & ~rlw, ok),
+                "water_gained": accuracy.binary_metrics(wchange == water.WATER_GAINED, ~rew & rlw, ok),
+                "cells_100m": accuracy.cell_fraction_agreement(pe_mask, pl_mask, rew, rlw, ok, 5)})
+
+    step("Reading SWOT lake water levels")
+    sw = swot.lake_level_change(study_area_id, e["date"], l["date"])
+    data = sw.pop("_data", None)
+    if sw["status"] == "available" and data:
+        sw["area_agreement"] = swot.lake_area_agreement(data, sw["passes"], wmap_e == water.WATER, wmap_l == water.WATER,
+                                                        pair.crs, pair.transform, px_m2 / 1e6)
+    ref["swot"] = sw
+
     if ref["accuracy"]:
         ref["independently_validated"] = True
         max_off = max(a["offset_days"] for a in ref["accuracy"])
@@ -304,7 +353,7 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     precip = None
     if cfg["include_precipitation"]:
         try:
-            precip = precipitation_context(tuple(area["bbox"]), e["date"], l["date"])
+            precip = precipitation_context(tuple(area["bbox"]), e["date"], l["date"], area_id=study_area_id)
         except Exception as ex:  # noqa: BLE001
             precip = {"status": "unavailable", "reason": f"GPM retrieval failed: {ex}"}
 

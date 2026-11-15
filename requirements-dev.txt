@@ -5,3 +5,4 @@ h5py>=3.11
 earthaccess>=0.11
 pytest>=8.2
 httpx>=0.27
+pyogrio>=0.10            # reading SWOT lake shapefiles (scripts/fetch_swot.py)

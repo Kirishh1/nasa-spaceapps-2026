@@ -73,13 +73,33 @@ def main() -> None:
                     best = (x, wtr, cover, [g["id"] for g in by_date[x]], track)
             if best is None:
                 print(f"{product}: no reference within ±{MAX_DAYS} d of {d} with ≥{min_obs:.0%} cover")
+            else:
+                x, wtr, cover, ids, track = best
+                rel = f"processed/reference/{a.area}/{product.lower()}_{x}.tif"
+                opera.write_cog(config.DATA_DIR / rel, wtr, crs, transform, 255, {"product": product, "date": x})
+                refs.append({"kind": "water", "product": product, "date": x, "nisar_date": d, "offset_days": _days(x, d),
+                             "track": track, "observed_fraction": round(cover, 4), "granules": ids, "path": rel})
+                print(f"{product}: {d} <- {x} (±{_days(x, d)} d, cover {cover:.0%}, {track})")
+            if product != "DSWX_S1":
                 continue
-            x, wtr, cover, ids, track = best
-            rel = f"processed/reference/{a.area}/{product.lower()}_{x}.tif"
-            opera.write_cog(config.DATA_DIR / rel, wtr, crs, transform, 255, {"product": product, "date": x})
-            refs.append({"kind": "water", "product": product, "date": x, "nisar_date": d, "offset_days": _days(x, d),
-                         "track": track, "observed_fraction": round(cover, 4), "granules": ids, "path": rel})
-            print(f"{product}: {d} <- {x} (±{_days(x, d)} d, cover {cover:.0%}, {track})")
+            # change-validation candidates: every radar water map within ±MAX_DAYS_RTC (pairs are formed per orbit)
+            for x in sorted(by_date):
+                if _days(x, d) > MAX_DAYS_RTC:
+                    continue
+                urls = [u for u in (opera.layer_url(g, "_B01_WTR.tif") for g in by_date[x]) if u]
+                paths = opera.download(urls, raw / product.lower())
+                wtr = opera.mosaic_to_grid(paths, crs, transform, shape, nodata=255)
+                cover = float((inside & np.isin(wtr, valid)).sum() / inside.sum())
+                if cover < min_obs:
+                    continue
+                with rasterio.open(paths[0]) as s:
+                    track = s.tags().get("RTC_TRACK_NUMBER")
+                rel = f"processed/reference/{a.area}/{product.lower()}_{x}.tif"
+                if not (config.DATA_DIR / rel).exists():
+                    opera.write_cog(config.DATA_DIR / rel, wtr, crs, transform, 255, {"product": product, "date": x})
+                refs.append({"kind": "water_change_candidate", "product": product, "date": x, "nisar_date": d,
+                             "offset_days": _days(x, d), "track": track, "observed_fraction": round(cover, 4),
+                             "granules": [g["id"] for g in by_date[x]], "path": rel})
 
     # --- C-band backscatter (RTC-S1 VV), every track near every NISAR date
     grans = opera.search("RTC_S1", area["bbox"], lo, hi)
