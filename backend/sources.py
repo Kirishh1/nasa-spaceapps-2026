@@ -44,6 +44,38 @@ NASA_RESOURCES = [
         "links": [{"label": "Earthdata Login", "url": "https://urs.earthdata.nasa.gov/"}],
     },
     {
+        "id": "opera_dswx_s1",
+        "name": "OPERA Dynamic Surface Water Extent from Sentinel-1 (DSWx-S1) V1",
+        "short_name": "OPERA_L3_DSWX-S1_V1",
+        "identifier": "CMR collection C2949811996-POCLOUD",
+        "provider": "NASA JPL OPERA project; distributed by NASA PO.DAAC",
+        "role": "Independent validation. NISAR open-water maps are scored against these radar-based water maps "
+                "(open water and inundated vegetation) from within a few days of each NISAR pass.",
+        "status": "integrated",
+        "links": [{"label": "PO.DAAC dataset", "url": "https://podaac.jpl.nasa.gov/dataset/OPERA_L3_DSWX-S1_V1"},
+                  {"label": "OPERA project (NASA Earthdata)", "url": "https://www.earthdata.nasa.gov/data/projects/opera"}],
+    },
+    {
+        "id": "opera_dswx_hls",
+        "name": "OPERA Dynamic Surface Water Extent from Harmonized Landsat-Sentinel-2 (DSWx-HLS) V1",
+        "short_name": "OPERA_L3_DSWX-HLS_V1",
+        "identifier": "CMR collection C2617126679-POCLOUD",
+        "provider": "NASA JPL OPERA project; distributed by NASA PO.DAAC",
+        "role": "Independent optical validation on cloud-free days: a completely different sensor type from radar.",
+        "status": "integrated",
+        "links": [{"label": "PO.DAAC dataset", "url": "https://podaac.jpl.nasa.gov/dataset/OPERA_L3_DSWX-HLS_V1"}],
+    },
+    {
+        "id": "opera_rtc_s1",
+        "name": "OPERA Radiometric Terrain Corrected Sentinel-1 backscatter (RTC-S1) V1",
+        "short_name": "OPERA_L2_RTC-S1_V1",
+        "identifier": "CMR collection C2777436413-ASF",
+        "provider": "NASA JPL OPERA project; distributed by NASA's ASF DAAC",
+        "role": "C-band comparison. An independent change map from Sentinel-1 VV is compared with NISAR's L-band change map.",
+        "status": "integrated",
+        "links": [{"label": "ASF dataset", "url": "https://www.earthdata.nasa.gov/data/catalog/asf-opera-l2-rtc-s1-v1-1"}],
+    },
+    {
         "id": "gpm_imerg",
         "name": "GPM IMERG Late Precipitation L3 1 day 0.1° × 0.1° V07",
         "short_name": "GPM_3IMERGDL",
@@ -66,17 +98,28 @@ OTHER_RESOURCES = [
      "role": "Reference: land cover, for the flooded-vegetation rule and per-class breakdown.", "status": "used",
      "links": [{"label": "Dataset", "url": "https://esa-worldcover.org/"}]},
     {"id": "rcm", "name": "RADARSAT Constellation Mission (C-band)", "provider": "Canadian Space Agency",
-     "role": "Planned C-band comparison. No RCM data was obtained, so nothing from RCM is shown.", "status": "not_used",
-     "links": []},
+     "role": "Originally planned C-band source. No RCM data was obtained; Sentinel-1 via NASA OPERA RTC-S1 provides the C-band comparison instead.",
+     "status": "not_used", "links": []},
+    {"id": "sentinel1", "name": "Copernicus Sentinel-1 (C-band SAR)", "provider": "European Space Agency / European Commission",
+     "role": "The radar behind OPERA RTC-S1 and DSWx-S1 (processed by NASA JPL).", "status": "used",
+     "links": [{"label": "Mission", "url": "https://sentiwiki.copernicus.eu/web/s1-mission"}]},
     {"id": "basemaps", "name": "Esri Dark Gray Canvas and World Imagery basemaps", "provider": "Esri and partners",
      "role": "Visual map background only; not used in any calculation.", "status": "used", "links": []},
 ]
 
 
-def sources(precipitation: dict | None = None) -> dict:
-    """Resource list, with GPM status taken from an analysis result when one is given."""
+def sources(precipitation: dict | None = None, result: dict | None = None) -> dict:
+    """Resource list; statuses of optional products reflect the given analysis result."""
     nasa = [dict(r) for r in NASA_RESOURCES]
+    used_refs = {a["product"] for a in ((result or {}).get("validation", {}).get("accuracy") or [])}
+    cband_used = ((result or {}).get("sensor_comparison") or {}).get("status") == "available"
     for r in nasa:
+        if r["id"] == "opera_dswx_s1" and "DSWX_S1" in used_refs:
+            r["status"] = "used"
+        if r["id"] == "opera_dswx_hls" and "DSWX_HLS" in used_refs:
+            r["status"] = "used"
+        if r["id"] == "opera_rtc_s1" and cband_used:
+            r["status"] = "used"
         if r["id"] == "gpm_imerg":
             if precipitation and precipitation.get("status") == "available":
                 r["status"] = "used"

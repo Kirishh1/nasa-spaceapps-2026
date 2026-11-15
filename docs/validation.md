@@ -1,31 +1,53 @@
 # Validation
 
-**Status: not independently validated.** No event-specific ground truth was available for the observation dates, such as field surveys or concurrent optical or SAR flood maps. The application states this on every result.
+## Independent references (NASA OPERA)
+NISAR open-water maps are compared pixel by pixel with NASA JPL OPERA Dynamic Surface Water Extent products:
+- **DSWx-HLS** (optical: Harmonized Landsat/Sentinel-2). A completely different sensor type. Used only on days at least 50% cloud-free.
+- **DSWx-S1** (C-band radar: Sentinel-1). Classes: 0 not water, 1 open water, 3 inundated vegetation, 250/251 masked, 255 no data.
 
-## What is checked
-1. **Software tests** (`pytest backend/tests`, 19 tests):
-   - dB conversion
-   - the sign of ΔB
-   - threshold classification and nodata propagation
-   - Lee/boxcar filter behaviour
-   - connected-component inundation rules
-   - area statistics against the raster transform
-   - rejection of incompatible pairs (dates, polarization, geometry, overlap, sensor)
-   - the full API flow, including tiles and pixel reads
-   - strict-JSON results when HDF5 fill values are NaN
-   - 2×2 multilooking and the Gaussian noise reference
+These are independent satellite products with their own errors, **not ground truth**.
 
-   The end-to-end test uses a **synthetic** HDF5 file with the GCOV layout. It exists only inside the test suite and is never shown in the app.
-2. **Reference consistency** (computed for every analysis):
-   - The share of open-water candidates that fall in pixels JRC GSW has ever recorded as water, compared with the same share for all valid pixels. A much higher share means the candidates sit in known floodplains or wetlands.
-   - The share of candidates in permanent water (≥ 90% occurrence). Change there more likely reflects wind or water-surface state than new inundation.
-   - The ΔB class breakdown by ESA WorldCover land-cover class.
-3. **Manual checks** (team, Member 4):
-   - compare the output against the NISAR browse PNG and QA report linked for each granule
-   - spot-check pixel values against direct `h5py` reads
-   - confirm the overlay registers with rivers and coastlines on the optical basemap
+## Results: case study, 18 Jun → 16 Oct 2026 (stored result `sylhet_monsoon`)
 
-## What would validate it
-- Concurrent Sentinel-1 or optical (Sentinel-2/Landsat) water maps for 28 Oct and 9 Nov 2026.
-- Bangladesh FFWC water-level records.
-- Field observations from the haor region.
+| NISAR date | Reference | Offset | Precision | Recall | F1 | IoU | κ |
+|---|---|---|---|---|---|---|---|
+| 16 Oct | DSWx-HLS, Landsat-9, 17 Oct (100% clear) | 1 d | 0.83 | 0.97 | **0.90** | **0.81** | 0.74 |
+| 16 Oct | DSWx-S1, Sentinel-1 orbit 114, 17 Oct | 1 d | 0.59 | 1.00 | 0.74 | 0.59 | 0.47 |
+| 18 Jun | DSWx-S1, Sentinel-1 orbit 41, 19 Jun | 1 d | 0.58 | 0.99 | 0.73 | 0.57 | 0.36 |
+
+**Additional check** (stored result `sylhet_demo`): 28 Oct NISAR vs DSWx-HLS (Sentinel-2B, 27 Oct, 82% clear): F1 0.85, IoU 0.74.
+
+**Threshold sensitivity.** Against the 17 Oct optical map, F1 stays between 0.84 and 0.91 for thresholds from −15 to −9 dB (±3 dB around the automatic −12.0 dB).
+
+**Change agreement.** The "water receded" class agrees with the change between the two DSWx-S1 maps with F1 0.26.
+- This is weak.
+- The two reference dates come from different Sentinel-1 orbits.
+- DSWx-S1 itself swings between 22% and 45% basin water from one orbit to the next within days (see the season chart), so it is a noisy reference for change.
+
+## Interpretation
+- NISAR's water maps agree closely with the optical reference and contain the C-band reference almost completely (recall ≥ 0.99).
+- NISAR maps more water than DSWx-S1. Optical, a third sensor, sides with NISAR.
+- That is consistent with C-band underestimating shallow, vegetated or wind-roughened water. It is not proof.
+
+## Software tests (`pytest backend/tests`, 29 tests)
+- dB conversion, the sign of ΔB, classification and nodata handling
+- speckle filters
+- inundation rules
+- statistics against the raster transform
+- incompatible-pair rejection
+- the API flow
+- strict JSON output
+- multilooking
+- the noise reference
+- confusion-matrix metrics with known values
+- Otsu thresholding, including the separability fallback on a scene with no water
+- water-change classes
+- an end-to-end validation run against a synthetic DSWx-style reference
+- blob storage against a fake SDK
+
+All test rasters are synthetic and are never shown in the app.
+
+## What would strengthen it
+- Field observations or Bangladesh FFWC water-level records for the same dates.
+- High-resolution optical flood maps.
+- A full NISAR time series (every 12 days, Jun–Nov) validated against every clear DSWx-HLS date.

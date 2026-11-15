@@ -144,3 +144,35 @@ def test_sources_lists_nasa_resources(setup):
     assert ids["nisar_gcov"]["status"] == "used" and "C3622241360-ASF" in ids["nisar_gcov"]["identifier"]
     assert ids["gpm_imerg"]["status"] in ("used", "integrated")
     assert all(r["links"] or r["id"] in ("rcm", "basemaps") for r in s["nasa"] + s["other"])
+
+
+def test_water_maps_validated_against_reference(setup):
+    """A synthetic DSWx-S1-style reference marking the dark patch as open water (class 1) must score highly."""
+    import json
+
+    import rasterio
+
+    from backend import config, storage
+    from backend.ingestion import opera
+    from backend.processing.pipeline import run_analysis
+
+    with rasterio.open(config.PROCESSED_DIR / "l_HHHH.tif") as s:
+        crs, transform, shape = s.crs, s.transform, (s.height, s.width)
+    ref = np.zeros(shape, "uint8")              # 0 = not water
+    ref[50:120, 50:120] = 1                     # 1 = open water: the dark patch of the later frame
+    ref[:, :5] = 255                            # no data where NISAR is masked
+    rel = "processed/reference/test/dswx_s1_2026-10-13.tif"
+    opera.write_cog(config.DATA_DIR / rel, ref, crs, transform, 255)
+    storage.write_text("reference/references_test.json", json.dumps([
+        {"kind": "water", "product": "DSWX_S1", "date": "2026-10-13", "nisar_date": "2026-10-13", "offset_days": 0,
+         "track": "41", "observed_fraction": 0.97, "granules": ["synthetic"], "path": rel}]))
+    r = run_analysis("test", "e", "l", {**CFG, "min_region_m2": 0})
+    w = r["water"]
+    assert w["gained_km2"] > 1.5 and w["lost_km2"] < 0.1          # 70x70 px x 400 m2 = 1.96 km2 of new water
+    acc = r["validation"]["accuracy"]
+    assert len(acc) == 1 and acc[0]["side"] == "later"
+    m = acc[0]["open_water"]
+    assert m["precision"] > 0.9 and m["recall"] > 0.9 and m["iou"] > 0.85
+    assert len(acc[0]["threshold_sensitivity"]) == 7
+    assert r["validation"]["independently_validated"] is True
+    storage.write_text("reference/references_test.json", "[]")

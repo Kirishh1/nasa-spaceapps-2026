@@ -20,7 +20,11 @@ from backend.preprocessing.alignment import align_to_reference
 from backend.preprocessing.calibration import linear_to_db, speckle_filter
 from backend.preprocessing.georeferencing import pixel_area_m2, polygon_mask
 from backend.processing import change_detection as cd
+from backend.comparison import cband
+from backend.ingestion import references
 from backend.processing import inundation as inu
+from backend.processing import water
+from backend.validation import accuracy
 from backend.processing.statistics import change_statistics
 from backend.validation import reference_data, validation
 
@@ -33,11 +37,18 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "speckle_filter": "lee",
     "filter_size": 5,
     "water_threshold_db": -18.0,
+    "water_threshold_mode": "otsu",
     "min_region_m2": 20000.0,
     "min_valid_fraction": 0.2,
     "allow_cross_geometry": False,
     "include_precipitation": True,
     "include_reference": True,
+}
+
+
+OPERA_WATER = {
+    "DSWX_S1": {"valid": (0, 1, 3), "open": (1,), "water": (1, 3)},   # 3 = inundated vegetation
+    "DSWX_HLS": {"valid": (0, 1, 2), "open": (1,), "water": (1, 2)},  # 2 = partial surface water
 }
 
 
@@ -157,11 +168,28 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
                 ref_errors.append(f"{name}: {ex}")
                 log.warning("reference %s failed: %s", name, ex)
 
-    step("Finding potential inundation and computing statistics")
+    step("Mapping open water on each date")
     min_px = max(1, int(round(float(cfg["min_region_m2"]) / px_m2)))
+    thr = {}
+    fits = {side: (water.otsu(img) if cfg["water_threshold_mode"] == "otsu" else None) for side, img in (("earlier", edb), ("later", ldb))}
+    for side in ("earlier", "later"):
+        other = "later" if side == "earlier" else "earlier"
+        own, alt = fits[side], fits[other]
+        if own and own[1] >= water.MIN_SEPARABILITY:
+            thr[side] = {"threshold_db": round(own[0], 2), "method": "otsu", "separability": own[1]}
+        elif alt and alt[1] >= water.MIN_SEPARABILITY:
+            # this image has no clear water/land split (e.g. little water); reuse the other date's threshold
+            thr[side] = {"threshold_db": round(alt[0], 2), "method": "otsu (from other date)", "separability": own[1] if own else None}
+        else:
+            thr[side] = {"threshold_db": float(cfg["water_threshold_db"]), "method": "fixed", "separability": own[1] if own else None}
+    wmap_e = water.water_map(edb, thr["earlier"]["threshold_db"], in_area, min_px)
+    wmap_l = water.water_map(ldb, thr["later"]["threshold_db"], in_area, min_px)
+    wchange = water.water_change(wmap_e, wmap_l)
+
+    step("Finding potential inundation and computing statistics")
     copol = cfg["polarization"] in ("HH", "VV")
     if copol:
-        inund, inund_info = inu.potential_inundation(cls, ldb, float(cfg["water_threshold_db"]), min_px, landcover)
+        inund, inund_info = inu.potential_inundation(cls, ldb, thr["later"]["threshold_db"], min_px, landcover)
     else:
         inund = np.where(cls > 0, inu.NONE, 0).astype("uint8")
         inund_info = {"evaluated": False, "reason": "Potential inundation rules are defined for co-polarized channels (HH/VV) only."}
@@ -172,13 +200,99 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     if ref_errors:
         ref["errors"] = ref_errors
     report = validation.uncertainty_report(e, l, cfg, compat.as_dict(), pair.notes, stats, spacing)
+    report["method"]["water_threshold"] = f"{cfg['water_threshold_mode']} (earlier {thr['earlier']['threshold_db']} dB, later {thr['later']['threshold_db']} dB)"
+
+    def km2(mask) -> float:
+        return round(float(np.count_nonzero(mask)) * px_m2 / 1e6, 3)
+
+    water_info = {
+        "thresholds": thr,
+        "earlier_km2": km2(wmap_e == water.WATER), "later_km2": km2(wmap_l == water.WATER),
+        "persistent_km2": km2(wchange == water.PERSISTENT_WATER), "gained_km2": km2(wchange == water.WATER_GAINED),
+        "lost_km2": km2(wchange == water.WATER_LOST),
+        "earlier_fraction": round(float((wmap_e == water.WATER).sum() / max(1, (wmap_e > 0).sum())), 4),
+        "later_fraction": round(float((wmap_l == water.WATER).sum() / max(1, (wmap_l > 0).sum())), 4),
+    }
+
+    step("Validating water maps against NASA OPERA references")
+    refs = references.load(study_area_id)
+    ref["accuracy"] = []
+    ref_maps = {}
+    for side, d, wm in (("earlier", e["date"], wmap_e), ("later", l["date"], wmap_l)):
+        for r in references.water_refs(refs, d):
+            path = storage.local_file(r["path"])
+            if path is None:
+                continue
+            with rasterio.open(path) as src:
+                rw = src.read(1)
+            if rw.shape != wm.shape:
+                continue
+            spec = OPERA_WATER[r["product"]]
+            ok = (wm > 0) & np.isin(rw, spec["valid"])
+            ref_maps[(side, r["product"])] = (rw, ok)
+            img = edb if side == "earlier" else ldb
+            t0 = thr[side]["threshold_db"]
+            ref_open = np.isin(rw, spec["open"])
+            sensitivity = []
+            for dt_ in (-3, -2, -1, 0, 1, 2, 3):
+                m = accuracy.binary_metrics(np.isfinite(img) & (img < t0 + dt_), ref_open, ok)
+                sensitivity.append({"threshold_db": round(t0 + dt_, 2), "f1": m["f1"], "iou": m["iou"], "precision": m["precision"], "recall": m["recall"]})
+            entry = {"side": side, "nisar_date": d, **{k: r[k] for k in ("product", "date", "offset_days", "track", "observed_fraction", "granules")},
+                     "open_water": accuracy.binary_metrics(wm == water.WATER, ref_open, ok),
+                     "all_water": accuracy.binary_metrics(wm == water.WATER, np.isin(rw, spec["water"]), ok),
+                     "threshold_sensitivity": sensitivity}
+            ref["accuracy"].append(entry)
+    # change agreement where the same reference product exists on both dates
+    ref["change_accuracy"] = []
+    for prod in ("DSWX_S1", "DSWX_HLS"):
+        if ("earlier", prod) in ref_maps and ("later", prod) in ref_maps:
+            (re_, oke), (rl_, okl) = ref_maps[("earlier", prod)], ref_maps[("later", prod)]
+            spec = OPERA_WATER[prod]
+            ok = oke & okl
+            rew, rlw = np.isin(re_, spec["open"]), np.isin(rl_, spec["open"])
+            for label, pred, truth in (("water_lost", wchange == water.WATER_LOST, rew & ~rlw),
+                                       ("water_gained", wchange == water.WATER_GAINED, ~rew & rlw)):
+                ref["change_accuracy"].append({"product": prod, "change": label, **accuracy.binary_metrics(pred, truth, ok)})
+    if ref["accuracy"]:
+        ref["independently_validated"] = True
+        max_off = max(a["offset_days"] for a in ref["accuracy"])
+        ref["statement"] = ("Open-water maps were compared pixel by pixel with NASA OPERA surface-water products (DSWx) from "
+                            "Sentinel-1 radar and Harmonized Landsat-Sentinel-2 optical data, within a few days of each NISAR pass. "
+                            "These are independent products, not ground truth: they have their own errors, and dates differ by up to "
+                            + (f"{max_off} day." if max_off == 1 else f"{max_off} days."))
+
+    step("Comparing with Sentinel-1 C-band (NASA OPERA RTC-S1)")
+    sensor_cmp = {"status": "unavailable", "reason": "No same-track Sentinel-1 RTC pair near both NISAR dates."}
+    cband_cls = None
+    pairc = references.cband_pair(refs, e["date"], l["date"])
+    if pairc:
+        pe_, pl_ = (storage.local_file(x["path"]) for x in pairc)
+        if pe_ and pl_:
+            cdelta, cband_cls = cband.cband_change(str(pe_), str(pl_), in_area, float(cfg["threshold_db"]), cfg["speckle_filter"], int(cfg["filter_size"]))
+            comp = cband.compare(cls, cband_cls, landcover, 5, pair.transform)
+            _write_cog(out_dir / "lc_agreement.tif", comp["agreement"], comp["transform"], pair.crs, 0, {"cell_size_m": comp["cell_size_m"]})
+            cv = cband_cls > 0
+            sensor_cmp = {
+                "status": "available",
+                "sensor": "Sentinel-1 C-band VV (NASA OPERA RTC-S1)",
+                "earlier": {k: pairc[0][k] for k in ("date", "track", "granules")},
+                "later": {k: pairc[1][k] for k in ("date", "track", "granules")},
+                "cell_size_m": comp["cell_size_m"], "stats": comp["stats"], "by_landcover": comp["by_landcover"],
+                "cband_change_percent": {
+                    "decrease": round(100 * float((cband_cls == cd.DECREASE).sum() / max(1, cv.sum())), 2),
+                    "increase": round(100 * float((cband_cls == cd.INCREASE).sum() / max(1, cv.sum())), 2)},
+                "method": "Each sensor's ΔB is classified with the same threshold on its own data; class maps are aggregated to "
+                          f"{comp['cell_size_m']:.0f} m cells (dominant class) and compared. Raw L- and C-band backscatter are never differenced.",
+            }
 
     step("Writing map layers")
     tags = {"study_area": study_area_id, "earlier": e["id"], "later": l["id"], "polarization": cfg["polarization"]}
     layers_spec = [
         ("earlier_db", edb, np.nan, "dB"), ("later_db", ldb, np.nan, "dB"), ("delta_db", delta, np.nan, "dB"),
-        ("change_class", cls, 0, "class"), ("inundation", inund, 0, "class"),
+        ("change_class", cls, 0, "class"), ("inundation", inund, 0, "class"), ("water_change", wchange, 0, "class"),
     ]
+    if cband_cls is not None:
+        layers_spec.append(("cband_change", cband_cls, 0, "class"))
     for name, arr, nod, units in layers_spec:
         _write_cog(out_dir / f"{name}.tif", arr.astype("float32") if units == "dB" else arr, pair.transform, pair.crs, nod, {**tags, "units": units})
     if occurrence is not None:
@@ -211,8 +325,10 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
         "validation": ref,
         "uncertainty": report,
         "precipitation": precip,
-        "sensor_comparison": {"status": "unavailable", "reason": "No compatible RCM (C-band) change map is available for this study area and period."},
-        "layers": [n for n, *_ in layers_spec] + (["jrc_occurrence"] if occurrence is not None else []),
+        "water": water_info,
+        "sensor_comparison": sensor_cmp,
+        "layers": [n for n, *_ in layers_spec] + (["jrc_occurrence"] if occurrence is not None else [])
+                  + (["lc_agreement"] if sensor_cmp["status"] == "available" else []),
     }
     result = registry.json_safe(result)
     (out_dir / "result.json").write_text(json.dumps(result, indent=2, default=str))

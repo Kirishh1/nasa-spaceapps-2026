@@ -24,14 +24,22 @@ AREAS_FILE = Path(__file__).with_name("demo_areas.json")
 
 def process_area(area: dict, catalog_only: bool, max_granules: int) -> None:
     bbox = tuple(area["bbox"])
-    registry.upsert_study_area({k: area[k] for k in ("id", "name", "description", "research_question", "bbox")} | {"geometry": bbox_polygon(bbox)})
-    granules = discovery.search_nisar_gcov(bbox)
-    print(f"[{area['id']}] CMR returned {len(granules)} NISAR GCOV granules intersecting {bbox}")
+    registry.upsert_study_area({k: area[k] for k in ("id", "name", "description", "research_question", "bbox", "featured_pair") if k in area} | {"geometry": bbox_polygon(bbox)})
+    granules = []
+    for coll in area.get("collections", [config.DEFAULT_NISAR_COLLECTION]):
+        found = discovery.search_nisar_gcov(bbox, collection=coll)
+        print(f"[{area['id']}] {coll}: {len(found)} granules intersecting {bbox}")
+        granules += found
+    granules.sort(key=lambda g: g["start_time"])
     for g in granules:
         registry.upsert_observation(g)
     if catalog_only:
         return
-    stack = [g for g in granules if g["stack_id"] == area["stack_id"]][-max_granules:]
+    stack = [g for g in granules if g["stack_id"] == area["stack_id"] and g["full_frame"]]
+    if area.get("dates"):
+        stack = [g for g in stack if g["date"] in set(area["dates"])]
+    else:
+        stack = stack[-max_granules:]
     if len(stack) < 2:
         print(f"[{area['id']}] fewer than two granules in stack {area['stack_id']}; nothing to compare")
     for g in stack:

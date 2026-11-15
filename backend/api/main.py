@@ -33,7 +33,7 @@ def data_sources(analysis_id: str | None = None) -> dict:
     from backend.processing import pipeline
 
     result = pipeline.load_result(analysis_id) if analysis_id else None
-    out = sources.sources(result.get("precipitation") if result else None)
+    out = sources.sources(result.get("precipitation") if result else None, result)
     if result:
         out["granules"] = [
             {k: result[side].get(k) for k in ("id", "date", "download_url", "qa_report_url", "product_version")}

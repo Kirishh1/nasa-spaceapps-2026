@@ -8,6 +8,7 @@ export interface StudyArea {
   name: string;
   description?: string;
   research_question?: string;
+  featured_pair?: [string, string];
   bbox: [number, number, number, number];
   geometry: Polygon;
 }
@@ -48,6 +49,7 @@ export interface AnalysisConfig {
   speckle_filter: "lee" | "boxcar" | "none";
   filter_size: number;
   water_threshold_db: number;
+  water_threshold_mode?: "otsu" | "fixed";
   min_region_m2: number;
   min_valid_fraction?: number;
   allow_cross_geometry?: boolean;
@@ -119,6 +121,34 @@ export interface Precipitation {
   caveat?: string;
 }
 
+export interface Metrics {
+  pixels: number; tp: number; fp: number; fn: number; tn: number;
+  precision: number | null; recall: number | null; f1: number | null; iou: number | null;
+  overall_accuracy: number | null; kappa: number | null; predicted_fraction: number | null; reference_fraction: number | null;
+}
+
+export interface AccuracyEntry {
+  side: "earlier" | "later"; nisar_date: string; product: "DSWX_S1" | "DSWX_HLS"; date: string; offset_days: number;
+  track: string | null; observed_fraction: number; granules: string[]; open_water: Metrics; all_water: Metrics;
+  threshold_sensitivity?: { threshold_db: number; f1: number | null; iou: number | null; precision: number | null; recall: number | null }[];
+}
+
+export interface WaterInfo {
+  thresholds: Record<"earlier" | "later", { threshold_db: number; method: string }>;
+  earlier_km2: number; later_km2: number; persistent_km2: number; gained_km2: number; lost_km2: number;
+  earlier_fraction: number; later_fraction: number;
+}
+
+export interface SensorComparison {
+  status: "available" | "unavailable"; reason?: string; sensor?: string; method?: string; cell_size_m?: number;
+  earlier?: { date: string; track: number; granules: string[] }; later?: { date: string; track: number; granules: string[] };
+  stats?: { compared_cells: number; counts: Record<string, number>; overall_agreement_percent: number | null; change_agreement_percent: number | null };
+  by_landcover?: { class: number; name: string; cells: number; agree_percent: number; l_band_only_percent: number; c_band_only_percent: number; opposite_percent: number }[];
+  cband_change_percent?: { decrease: number; increase: number };
+}
+
+export interface TimelinePoint { product: "DSWX_S1" | "DSWX_HLS"; date: string; observed_fraction: number; water_fraction: number | null; open_water_fraction: number | null }
+
 export interface AnalysisResult {
   id: string;
   status: "complete";
@@ -154,6 +184,8 @@ export interface AnalysisResult {
       rows?: { class: number; name: string; pixels: number; percent_decrease: number; percent_increase: number }[];
     };
     errors?: string[];
+    accuracy?: AccuracyEntry[];
+    change_accuracy?: (Metrics & { product: string; change: "water_lost" | "water_gained" })[];
   };
   uncertainty: {
     pixel_spacing_m: number[];
@@ -165,7 +197,8 @@ export interface AnalysisResult {
     interpretation_caveat: string;
   };
   precipitation: Precipitation | null;
-  sensor_comparison: { status: string; reason?: string };
+  sensor_comparison: SensorComparison;
+  water?: WaterInfo;
   layers: string[];
 }
 
@@ -260,6 +293,7 @@ export const api = {
     request<{ ok: boolean; errors: Issue[]; warnings: Issue[] }>("/api/analysis/check", { method: "POST", body: JSON.stringify(req) }),
   start: (req: AnalysisRequest) => request<{ id: string; status: string }>("/api/analysis", { method: "POST", body: JSON.stringify(req) }),
   sources: (analysisId?: string) => request<SourcesResponse>(`/api/sources${analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : ""}`),
+  timeline: (studyArea: string) => request<{ status: string; series: TimelinePoint[] }>(`/api/study-areas/${encodeURIComponent(studyArea)}/timeline`),
   analyses: (studyArea: string) => request<StoredAnalysis[]>(`/api/analyses?study_area=${encodeURIComponent(studyArea)}`),
   analysis: (id: string) => request<AnalysisResult | JobStatus>(`/api/analysis/${id}`),
   layers: (id: string) => request<{ id: string; layers: MapLayer[] }>(`/api/analysis/${id}/layers`),

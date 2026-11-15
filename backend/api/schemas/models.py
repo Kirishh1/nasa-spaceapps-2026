@@ -12,6 +12,7 @@ class AnalysisConfig(BaseModel):
     speckle_filter: Literal["lee", "boxcar", "none"] = "lee"
     filter_size: int = Field(5, ge=1, le=15)
     water_threshold_db: float = Field(-18.0, ge=-40, le=0, description="Later-date backscatter below which a decrease is water-like (dB)")
+    water_threshold_mode: Literal["otsu", "fixed"] = "otsu"
     min_region_m2: float = Field(20000.0, ge=0)
     min_valid_fraction: float = Field(0.2, ge=0, le=1)
     allow_cross_geometry: bool = False

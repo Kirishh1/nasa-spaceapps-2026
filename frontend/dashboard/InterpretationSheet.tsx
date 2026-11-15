@@ -5,6 +5,7 @@ import { ChevronRight, ExternalLink } from "lucide-react";
 import type { AnalysisResult, Observation, StudyArea } from "@/services/api";
 import { ChangeHistogram } from "./ChangeHistogram";
 import { DataSources } from "./DataSources";
+import { WaterTimeline } from "./WaterTimeline";
 import { RainfallStrip } from "./RainfallStrip";
 
 const km2 = (v: number) => (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v.toFixed(2));
@@ -17,7 +18,7 @@ function NasaLine() {
   };
   return (
     <p className="mt-3 text-[12px] leading-snug text-ink-3">
-      Data: <span className="text-ink-2">NASA–ISRO NISAR L2 GCOV</span> from NASA&apos;s ASF DAAC, found via NASA CMR.{" "}
+      Data: <span className="text-ink-2">NASA–ISRO NISAR L2 GCOV</span> (NASA ASF DAAC), checked against <span className="text-ink-2">NASA OPERA</span> surface-water maps.{" "}
       <button type="button" onClick={open} className="text-ink-2 underline underline-offset-2 hover:text-ink">All sources</button>
     </p>
   );
@@ -117,14 +118,18 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
   const u = result.uncertainty;
   const v = result.validation;
   const jrc = v.jrc_surface_water;
-  const lc = v.landcover_breakdown;
-  const ow = s.potential_inundation.open_water;
   const vf = s.potential_inundation.vegetated;
-  const pct = (x: number | null | undefined) => (x === null || x === undefined ? "—" : `${(100 * x).toFixed(1)}%`);
 
   const changed = s.classes.significant_decrease.area_km2 + s.classes.significant_increase.area_km2;
   const nr = s.noise_reference;
+  const w = result.water;
+  const acc = v.accuracy ?? [];
+  const optical = acc.find((x) => x.product === "DSWX_HLS");
+  const best = optical ?? acc.find((x) => x.product === "DSWX_S1");
+  const f = (x: number | null | undefined, d = 2) => (x === null || x === undefined ? "—" : x.toFixed(d));
   const fmtDate = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  const refName = (p: string) => (p === "DSWX_HLS" ? "optical (DSWx-HLS)" : "C-band radar (DSWx-S1)");
+  const sc = result.sensor_comparison;
 
   return (
     <div>
@@ -133,103 +138,183 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
         {fmtDate(result.earlier.date)} → {fmtDate(result.later.date)} {result.later.date.slice(0, 4)} · {result.days_between} days · NISAR L-band {result.config.polarization}
       </p>
 
-      {/* the answer, stated in a sentence built from the computed values */}
-      <p className="mt-4 text-[15px] leading-relaxed text-ink">
-        Backscatter fell over <span className="num text-decrease">{km2(s.classes.significant_decrease.area_km2)} km²</span> and rose over{" "}
-        <span className="num text-increase">{km2(s.classes.significant_increase.area_km2)} km²</span> of the {km2(s.analyzed_area_km2)} km² basin.{" "}
-        {ow.pixels > 0
-          ? <><span className="num text-water">{km2(ow.area_km2)} km²</span> of the decreases look like possible new open water.</>
-          : <>No decrease looks like new open water under the current thresholds.</>}
-      </p>
+      {/* the answer, stated in sentences built from the computed values */}
+      {w ? (
+        <p className="mt-4 text-[15px] leading-relaxed text-ink">
+          Open water {w.later_km2 < w.earlier_km2 ? "shrank" : "grew"} from <span className="num">{km2(w.earlier_km2)} km²</span> to{" "}
+          <span className="num">{km2(w.later_km2)} km²</span>: <span className="num text-[#d97706]">{km2(w.lost_km2)} km²</span> receded and{" "}
+          <span className="num text-water">{km2(w.gained_km2)} km²</span> newly flooded.
+        </p>
+      ) : (
+        <p className="mt-4 text-[15px] leading-relaxed text-ink">
+          Backscatter fell over <span className="num text-decrease">{km2(s.classes.significant_decrease.area_km2)} km²</span> and rose over{" "}
+          <span className="num text-increase">{km2(s.classes.significant_increase.area_km2)} km²</span> of the {km2(s.analyzed_area_km2)} km² basin.
+        </p>
+      )}
 
       <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] leading-snug text-ink-2">
-        <span className="rounded-[2px] bg-marker px-1.5 py-px text-[10.5px] font-bold tracking-wide text-marker-ink uppercase">Not validated</span>
-        {nr ? <span>{nr.observed_exceedance_percent.toFixed(1)}% of pixels changed; noise alone would explain about {nr.expected_exceedance_percent_gaussian.toFixed(1)}%.</span> : <span>Treat as potential change, not confirmed flooding.</span>}
+        {best ? (
+          <>
+            <span className="rounded-[2px] bg-marker px-1.5 py-px text-[10.5px] font-bold tracking-wide text-marker-ink uppercase">Checked vs NASA OPERA</span>
+            <span>
+              The {fmtDate(best.nisar_date)} water map matches the {refName(best.product)} map from {fmtDate(best.date)} with F1 <span className="num text-ink">{f(best.open_water.f1)}</span>, IoU <span className="num text-ink">{f(best.open_water.iou)}</span>.
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="rounded-[2px] bg-marker px-1.5 py-px text-[10.5px] font-bold tracking-wide text-marker-ink uppercase">Not validated</span>
+            {nr ? <span>{nr.observed_exceedance_percent.toFixed(1)}% of pixels changed; noise alone would explain about {nr.expected_exceedance_percent_gaussian.toFixed(1)}%.</span> : null}
+          </>
+        )}
       </p>
 
       <NasaLine />
       {storedAt && <p className="mt-2 text-[11px] text-ink-3">Stored result from {storedAt.slice(0, 16).replace("T", " ")} UTC · Run analysis to recompute it live.</p>}
 
       <div className="mt-5">
-        <Fold title="Change breakdown" value={`${km2(changed)} km² changed`}>
+        {w && (
+          <Fold id="fold-water" title="Water change" value={`${km2(w.lost_km2)} km² receded`}>
+            <dl>
+              <Row k={<span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-[#d97706]" aria-hidden />Water receded</span>} v={km2(w.lost_km2)} sub="km²" />
+              <Row k={<span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-water" aria-hidden />Newly flooded</span>} v={km2(w.gained_km2)} sub="km²" />
+              <Row k={<span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-[#1d4ed8]" aria-hidden />Water on both dates</span>} v={km2(w.persistent_km2)} sub="km²" />
+              <Row k={`Open water ${fmtDate(result.earlier.date)}`} v={km2(w.earlier_km2)} sub={`km² · ${(100 * w.earlier_fraction).toFixed(0)}%`} />
+              <Row k={`Open water ${fmtDate(result.later.date)}`} v={km2(w.later_km2)} sub={`km² · ${(100 * w.later_fraction).toFixed(0)}%`} />
+            </dl>
+            <p className="mt-2 text-[11.5px] leading-snug text-ink-3">
+              Open water = speckle-filtered HH backscatter below a threshold chosen automatically for each image (Otsu):{" "}
+              <span className="num">{w.thresholds.earlier.threshold_db} dB</span> and <span className="num">{w.thresholds.later.threshold_db} dB</span>.
+              Flooded vegetation can look bright, not dark, so it is not counted as open water.
+            </p>
+          </Fold>
+        )}
+
+        <Fold id="fold-validation" title="Validation & confidence" value={best ? `F1 ${f(best.open_water.f1)} vs ${best.product === "DSWX_HLS" ? "optical" : "C-band"}` : "Not validated"} tone={best ? "ink" : "warn"}>
+          {acc.length > 0 && (
+            <>
+              <p className="mb-2 text-[12px] leading-relaxed text-ink-2">
+                Each NISAR water map is compared pixel by pixel with an independent NASA OPERA surface-water map from within {Math.max(...acc.map((a) => a.offset_days))} day of the NISAR pass.
+              </p>
+              <table className="w-full text-[11.5px]">
+                <thead>
+                  <tr className="text-ink-3">
+                    <th className="py-1 text-left font-normal">NISAR vs reference</th>
+                    <th className="text-right font-normal">Precision</th><th className="text-right font-normal">Recall</th>
+                    <th className="text-right font-normal">F1</th><th className="text-right font-normal">IoU</th>
+                  </tr>
+                </thead>
+                <tbody className="num">
+                  {acc.map((a) => (
+                    <tr key={`${a.side}${a.product}`} className="border-t border-rule-soft">
+                      <td className="py-1 font-sans text-ink-2">{fmtDate(a.nisar_date)} · {a.product === "DSWX_HLS" ? "optical" : "C-band"} {fmtDate(a.date)}</td>
+                      <td className="text-right text-ink">{f(a.open_water.precision)}</td><td className="text-right text-ink">{f(a.open_water.recall)}</td>
+                      <td className="text-right font-semibold text-ink">{f(a.open_water.f1)}</td><td className="text-right text-ink">{f(a.open_water.iou)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {optical?.threshold_sensitivity && (
+                <p className="mt-2 text-[11.5px] leading-snug text-ink-3">
+                  Robustness: shifting the water threshold by ±3 dB keeps F1 against the optical map between{" "}
+                  <span className="num text-ink-2">{f(Math.min(...optical.threshold_sensitivity.map((x) => x.f1 ?? 1)))}</span> and{" "}
+                  <span className="num text-ink-2">{f(Math.max(...optical.threshold_sensitivity.map((x) => x.f1 ?? 0)))}</span>.
+                </p>
+              )}
+              {(v.change_accuracy ?? []).filter((c) => c.change === "water_lost").map((c) => (
+                <p key={c.product} className="mt-2 text-[11.5px] leading-snug text-ink-3">
+                  Change check: NISAR&apos;s “water receded” map agrees with the change between the two {c.product === "DSWX_HLS" ? "optical" : "C-band"} reference maps with F1 <span className="num text-ink-2">{f(c.f1)}</span>.
+                  This is weak, partly because the C-band reference itself swings between Sentinel-1 orbits (see the season chart).
+                </p>
+              ))}
+              <p className="mt-2 text-[11.5px] leading-snug text-warn">{v.statement}</p>
+            </>
+          )}
+          {nr && (
+            <dl className="mt-3">
+              <Row k="Pixels past the backscatter threshold" v={`${nr.observed_exceedance_percent.toFixed(1)}%`} />
+              <Row k="Expected from noise alone" v={`${nr.expected_exceedance_percent_gaussian.toFixed(1)}%`} />
+            </dl>
+          )}
+          <p className="mt-2 mb-1 text-[12px] leading-relaxed text-ink-2">{u.interpretation_caveat}</p>
+          <details className="mt-1">
+            <summary className="cursor-pointer text-[11.5px] text-ink-3 underline underline-offset-2">What else can change backscatter</summary>
+            <ul className="mt-1 list-disc pl-4 text-[11.5px] leading-snug text-ink-3">{u.false_positive_sources.map((x) => <li key={x} className="mb-1">{x}</li>)}</ul>
+          </details>
+          {jrc && !jrc.status && jrc.caveat && <p className="mt-2 text-[11.5px] leading-snug text-ink-3">JRC historical water: {jrc.caveat}</p>}
+        </Fold>
+
+        <Fold id="fold-lband" title="L-band vs C-band" value={sc.status === "available" ? `${f(sc.stats?.overall_agreement_percent, 0)}% of cells agree` : acc.length ? "L-band sees more water" : "no C-band data"} tone={sc.status === "available" || acc.length ? "ink" : "muted"}>
+          {acc.length > 0 && (
+            <>
+              <p className="mb-2 text-[12px] leading-relaxed text-ink-2">Open water on the same days, counted over the pixels both maps observed:</p>
+              <dl>
+                {acc.map((a) => (
+                  <Row key={`f${a.product}${a.side}`}
+                    k={`${fmtDate(a.nisar_date)} · NISAR vs ${a.product === "DSWX_HLS" ? "optical" : "C-band"} (${fmtDate(a.date)})`}
+                    v={`${Math.round(100 * (a.open_water.predicted_fraction ?? 0))}% vs ${Math.round(100 * (a.open_water.reference_fraction ?? 0))}%`} />
+                ))}
+              </dl>
+              <p className="mt-2 text-[11.5px] leading-snug text-ink-3">
+                NISAR&apos;s longer L-band wavelength agrees closely with the cloud-free optical map, while the C-band map finds far less water.
+                A likely reason: in shallow haor water with emergent rice and grasses, C-band scatters off the vegetation and looks like land, whereas L-band passes through to the water surface.
+                This is consistent with known wavelength behaviour but has not been proven for this scene.
+              </p>
+            </>
+          )}
+          {sc.status === "available" ? (() => {
+            const rows = [...(sc.by_landcover ?? [])].filter((r) => r.cells >= 1000);
+            const cOnly = [...rows].sort((a, b) => b.c_band_only_percent - a.c_band_only_percent).slice(0, 2);
+            const stable = [...rows].sort((a, b) => b.agree_percent - a.agree_percent)[0];
+            return (
+              <>
+                <p className="mt-3 mb-1 text-[12px] leading-relaxed text-ink-2">
+                  Change maps from each band, on {sc.cell_size_m?.toFixed(0)} m cells (Sentinel-1 {sc.earlier?.date} → {sc.later?.date}, orbit {sc.earlier?.track}):
+                  the bands agree on <span className="num text-ink">{f(sc.stats?.overall_agreement_percent, 0)}%</span> of cells.
+                </p>
+                <table className="mt-2 w-full text-[11.5px]">
+                  <thead><tr className="text-ink-3"><th className="py-1 text-left font-normal">Land cover</th><th className="text-right font-normal">Agree</th><th className="text-right font-normal">L only</th><th className="text-right font-normal">C only</th></tr></thead>
+                  <tbody className="num">
+                    {rows.map((r) => (
+                      <tr key={r.class} className="border-t border-rule-soft">
+                        <td className="py-1 font-sans text-ink-2">{r.name}</td><td className="text-right text-ink">{r.agree_percent}%</td>
+                        <td className="text-right text-ink">{r.l_band_only_percent}%</td><td className="text-right text-ink">{r.c_band_only_percent}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {cOnly.length > 0 && (
+                  <p className="mt-2 text-[12px] leading-relaxed text-ink-2">
+                    The disagreement is concentrated where there is water: C-band alone reports change on{" "}
+                    {cOnly.map((r, i) => <span key={r.class}>{i ? " and " : ""}<span className="num text-ink">{r.c_band_only_percent}%</span> of {r.name.toLowerCase()}</span>)},
+                    while {stable?.name.toLowerCase()} agrees on <span className="num text-ink">{stable?.agree_percent}%</span>.
+                    C-band (5.6 cm) is highly sensitive to centimetre-scale wind ripples on water and to emergent vegetation; L-band (24 cm) is not.
+                    That fits C-band reacting to water-surface roughness and plant growth rather than to drainage alone. It is a physically consistent explanation, not a proven one.
+                  </p>
+                )}
+                <p className="mt-2 text-[11.5px] leading-snug text-ink-3">{sc.method}</p>
+              </>
+            );
+          })() : (
+            <p className="mt-3 text-[11.5px] leading-snug text-ink-3">C-band change map: {sc.reason}</p>
+          )}
+        </Fold>
+
+        <Fold id="fold-season" title="Season context" value="Jun–Nov 2026" tone="muted">
+          <WaterTimeline areaId={result.study_area.id} nisar={w ? [{ date: result.earlier.date, fraction: w.earlier_fraction }, { date: result.later.date, fraction: w.later_fraction }] : []} />
+        </Fold>
+
+        <Fold title="Backscatter change" value={`${km2(changed)} km² past ±${result.config.threshold_db} dB`} tone="muted">
           <ClassBar r={result} />
           <dl className="mt-3">
             <Row k={<span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-decrease" aria-hidden />Significant decrease</span>} v={km2(s.classes.significant_decrease.area_km2)} sub={`km² · ${s.classes.significant_decrease.percent_of_valid.toFixed(1)}%`} />
             <Row k={<span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-increase" aria-hidden />Significant increase</span>} v={km2(s.classes.significant_increase.area_km2)} sub={`km² · ${s.classes.significant_increase.percent_of_valid.toFixed(1)}%`} />
             <Row k={<span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-limited" aria-hidden />Limited change</span>} v={km2(s.classes.limited_change.area_km2)} sub={`km² · ${s.classes.limited_change.percent_of_valid.toFixed(1)}%`} />
+            <Row k="Flooded-vegetation candidates" v={result.inundation.vegetated_flooding_evaluated ? km2(vf.area_km2) : "not evaluated"} sub={result.inundation.vegetated_flooding_evaluated ? "km²" : undefined} />
           </dl>
-          <div className="mt-4">
-            <ChangeHistogram h={s.histogram} threshold={result.config.threshold_db} />
-          </div>
-          <dl className="mt-3">
-            <Row k="Analysed area" v={km2(s.analyzed_area_km2)} sub="km²" />
-            <Row k="Valid pixels" v={`${s.valid_percent.toFixed(1)}%`} sub={`${s.valid_pixels.toLocaleString()} px`} />
-            <Row k="Missing data" v={km2(s.missing_area_km2)} sub="km²" />
-            <Row k="ΔB median · p05 · p95" v={`${s.delta_db.median?.toFixed(2)} · ${s.delta_db.p05?.toFixed(2)} · ${s.delta_db.p95?.toFixed(2)}`} sub="dB" />
-          </dl>
-        </Fold>
-
-        <Fold title="Possible new water" value={`${km2(ow.area_km2)} km²`}>
-          <dl>
-            <Row k={<span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-water" aria-hidden />Open-water emergence</span>} v={km2(ow.area_km2)} sub={`km² · ${ow.percent_of_valid.toFixed(2)}%`} />
-            <Row k={<span className="flex items-center gap-1.5"><span className="h-2 w-2 bg-vegetated" aria-hidden />Flooded-vegetation candidates</span>} v={result.inundation.vegetated_flooding_evaluated ? km2(vf.area_km2) : "not evaluated"} sub={result.inundation.vegetated_flooding_evaluated ? "km²" : undefined} />
-          </dl>
+          <div className="mt-4"><ChangeHistogram h={s.histogram} threshold={result.config.threshold_db} /></div>
           <p className="mt-2 text-[11.5px] leading-snug text-ink-3">
-            Flagged when ΔB ≤ −{result.config.threshold_db} dB, the later return is below {result.config.water_threshold_db} dB, and the patch is at least {(result.config.min_region_m2 / 10000).toFixed(1)} ha.
-            Flooded-vegetation candidates are increases of at least {result.config.threshold_db} dB inside tree, wetland or mangrove cover (possible double bounce).
-            {result.inundation.reason ? ` ${result.inundation.reason}` : ""}
-            {result.inundation.vegetated_flooding_reason ? ` ${result.inundation.vegetated_flooding_reason}` : ""}
+            ΔB = B<sub>later</sub> − B<sub>earlier</sub>. Flooded-vegetation candidates are increases inside tree, wetland or mangrove cover (possible double bounce).
           </p>
-        </Fold>
-
-        <Fold title="How confident is this?" value="Not validated" tone="warn">
-          <p className="mb-2 text-[12.5px] leading-relaxed text-ink">{v.statement}</p>
-          {nr && (
-            <dl className="mb-2">
-              <Row k="Pixels past the threshold" v={`${nr.observed_exceedance_percent.toFixed(1)}%`} />
-              <Row k="Expected from noise alone" v={`${nr.expected_exceedance_percent_gaussian.toFixed(1)}%`} />
-              <Row k="ΔB spread (robust σ)" v={nr.robust_sigma_db.toFixed(2)} sub={`dB · threshold = ${nr.threshold_in_sigma}σ`} />
-            </dl>
-          )}
-          <p className="mb-2 text-[12px] leading-relaxed text-ink-2">{u.interpretation_caveat}</p>
-          <p className="label mb-1">What else can change backscatter</p>
-          <ul className="list-disc pl-4 text-[11.5px] leading-snug text-ink-3 marker:text-ink-3">
-            {u.false_positive_sources.map((x) => <li key={x} className="mb-1">{x}</li>)}
-          </ul>
-        </Fold>
-
-        <Fold title="Reference checks" value={jrc && !jrc.status ? `${pct(jrc.fraction_candidates_in_historically_wet_pixels)} in known wet areas` : "not run"} tone="muted">
-          {jrc && !jrc.status ? (
-            <>
-              <dl>
-                <Row k="Candidates in historically wet pixels" v={pct(jrc.fraction_candidates_in_historically_wet_pixels)} />
-                <Row k="Baseline: all valid pixels" v={pct(jrc.baseline_fraction_historically_wet)} />
-                <Row k="Candidates in permanent water (≥90%)" v={pct(jrc.fraction_candidates_in_permanent_water)} />
-              </dl>
-              {jrc.caveat && <p className="mt-2 text-[12px] leading-snug text-warn">{jrc.caveat}</p>}
-              <p className="mt-2 text-[11.5px] leading-snug text-ink-3">{jrc.interpretation}</p>
-              <p className="mt-1 text-[11px] text-ink-3">{jrc.source?.name}. {jrc.source?.citation}.</p>
-            </>
-          ) : (
-            <p className="text-[12px] text-ink-3">{jrc?.reason ?? "JRC reference not evaluated."}</p>
-          )}
-          {lc?.rows && (
-            <table className="mt-3 w-full text-[11.5px]">
-              <caption className="label mb-1 text-left">Change by ESA WorldCover class</caption>
-              <thead>
-                <tr className="text-ink-3"><th className="py-1 text-left font-normal">Class</th><th className="text-right font-normal">Decr.</th><th className="text-right font-normal">Incr.</th></tr>
-              </thead>
-              <tbody className="num">
-                {lc.rows.filter((x) => x.pixels > 0.01 * s.valid_pixels).map((x) => (
-                  <tr key={x.class} className="border-t border-rule-soft">
-                    <td className="py-1 font-sans text-ink-2">{x.name}</td>
-                    <td className="text-right text-ink">{x.percent_decrease.toFixed(1)}%</td>
-                    <td className="text-right text-ink">{x.percent_increase.toFixed(1)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
         </Fold>
 
         <Fold title="The two radar frames" value={`${fmtDate(result.earlier.date)} · ${fmtDate(result.later.date)}`} tone="muted">
@@ -240,12 +325,12 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
           <dl className="mt-3">
             <Row k="Grid" v={result.grid.crs} />
             <Row k="Pixel spacing" v={`${result.grid.pixel_spacing_m[0]} × ${result.grid.pixel_spacing_m[1]}`} sub="m" />
-            <Row k="Raster size" v={`${result.grid.shape[1]} × ${result.grid.shape[0]}`} sub="px" />
             <Row k="Speckle filter" v={String(u.method.speckle_filter)} />
+            <Row k="Valid pixels" v={`${s.valid_percent.toFixed(1)}%`} />
           </dl>
           <ul className="mt-2 list-disc pl-4 text-[11.5px] leading-snug text-ink-3">
             {u.alignment.map((a) => <li key={a}>{a}</li>)}
-            {u.compatibility_warnings.map((w) => <li key={w.code} className="text-warn">{w.message}</li>)}
+            {u.compatibility_warnings.map((cw) => <li key={cw.code} className="text-warn">{cw.message}</li>)}
           </ul>
         </Fold>
 
@@ -253,14 +338,7 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
           <RainfallStrip p={result.precipitation} earlier={result.earlier.date} later={result.later.date} />
         </Fold>
 
-        <Fold title="L-band vs C-band" value="no C-band data" tone="muted">
-          <p className="text-[12px] leading-relaxed text-ink-2">{result.sensor_comparison.reason}</p>
-          <p className="mt-2 text-[11.5px] leading-snug text-ink-3">
-            When RCM data exists, each sensor&apos;s change map is derived on its own and compared on a common coarser grid. Raw L-band and C-band backscatter are never subtracted from each other.
-          </p>
-        </Fold>
-
-        <Fold title="Data sources" value="NASA NISAR · CMR · Earthdata" tone="muted" id="data-sources">
+        <Fold title="Data sources" value="NASA NISAR · OPERA · CMR" tone="muted" id="data-sources">
           <DataSources analysisId={result.id} />
         </Fold>
       </div>

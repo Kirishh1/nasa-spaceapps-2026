@@ -8,11 +8,11 @@ from backend.processing.change_detection import DECREASE, INCREASE, LIMITED, NOD
 AGREE_STABLE, AGREE_DECREASE, AGREE_INCREASE, ONLY_A, ONLY_B, OPPOSITE = 1, 2, 3, 4, 5, 6
 
 COMPARISON_LEGEND = [
-    {"value": AGREE_DECREASE, "label": "Both: decrease", "color": "#2f7fd8"},
-    {"value": AGREE_INCREASE, "label": "Both: increase", "color": "#e8803a"},
-    {"value": AGREE_STABLE, "label": "Both: limited change", "color": "#374151"},
-    {"value": ONLY_A, "label": "Change in sensor A only", "color": "#c084fc"},
-    {"value": ONLY_B, "label": "Change in sensor B only", "color": "#facc15"},
+    {"value": AGREE_DECREASE, "label": "Both bands: decrease", "color": "#2f7fd8"},
+    {"value": AGREE_INCREASE, "label": "Both bands: increase", "color": "#e8803a"},
+    {"value": AGREE_STABLE, "label": "Both bands: limited change", "color": "#374151"},
+    {"value": ONLY_A, "label": "Change seen by NISAR L-band only", "color": "#c084fc"},
+    {"value": ONLY_B, "label": "Change seen by C-band only", "color": "#facc15"},
     {"value": OPPOSITE, "label": "Opposite directions", "color": "#ef4444"},
 ]
 

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { LayerPlies } from "@/components/LayerPlies";
 import { MapLegend } from "@/components/MapLegend";
+import { buildTour, StoryTour } from "@/components/StoryTour";
 import { ToolTray, type Sensor } from "@/components/ToolTray";
 import { InterpretationSheet } from "@/dashboard/InterpretationSheet";
 import type { Basemap, LayerState } from "@/maps/LightTableMap";
@@ -16,19 +17,19 @@ import {
 const LightTableMap = dynamic(() => import("@/maps/LightTableMap").then((m) => m.LightTableMap), { ssr: false });
 
 const DEFAULT_CONFIG: AnalysisConfig = {
-  frequency: "A", polarization: "HH", threshold_db: 3, speckle_filter: "lee", filter_size: 5, water_threshold_db: -18, min_region_m2: 20000,
+  frequency: "A", polarization: "HH", threshold_db: 3, speckle_filter: "lee", filter_size: 5, water_threshold_db: -18, water_threshold_mode: "otsu", min_region_m2: 20000,
 };
 
-type View = "change" | "delta" | "water" | "swipe";
-const VIEWS: { id: View; label: string; layers: string[]; hint: string }[] = [
-  { id: "change", label: "Where it changed", layers: ["change_class", "earlier_db"], hint: "Pixels whose backscatter moved more than the threshold" },
-  { id: "delta", label: "How much (ΔB)", layers: ["delta_db"], hint: "Continuous change in dB, blue = darker, red = brighter" },
-  { id: "water", label: "Potential water", layers: ["inundation", "later_db"], hint: "Rule-based inundation-consistent patches over the later frame" },
+type View = "water" | "change" | "delta" | "lc" | "swipe";
+const VIEWS: { id: View; label: string; layers: string[]; hint: string; needs?: string }[] = [
+  { id: "water", label: "Water change", layers: ["water_change", "later_db"], hint: "Open water that receded or appeared between the two NISAR passes", needs: "water_change" },
+  { id: "change", label: "Backscatter change", layers: ["change_class", "earlier_db"], hint: "Pixels whose backscatter moved more than the threshold" },
+  { id: "delta", label: "ΔB", layers: ["delta_db"], hint: "Continuous change in dB, blue = darker, red = brighter" },
+  { id: "lc", label: "L vs C band", layers: ["lc_agreement", "later_db"], hint: "Where NISAR L-band and Sentinel-1 C-band change maps agree or disagree", needs: "lc_agreement" },
   { id: "swipe", label: "Before / after", layers: [], hint: "Drag the divider across the two radar frames" },
 ];
 
-const PLY_ORDER = ["inundation", "change_class", "delta_db", "jrc_occurrence", "later_db", "earlier_db"];
-const DEFAULT_VISIBLE = new Set(["change_class"]);
+const PLY_ORDER = ["lc_agreement", "water_change", "inundation", "change_class", "cband_change", "delta_db", "jrc_occurrence", "later_db", "earlier_db"];
 
 function Wordmark() {
   return (
@@ -71,6 +72,9 @@ export default function Workspace() {
   const [storedAt, setStoredAt] = useState<string | null>(null);
   const [view, setView] = useState<View>("change");
 
+  const [tour, setTour] = useState<number | null>(null);
+  const tourSteps = useMemo(() => (result ? buildTour(result) : []), [result]);
+
   const applyView = useCallback((v: View) => {
     setView(v);
     if (v === "swipe") { setSwipe(true); return; }
@@ -101,25 +105,34 @@ export default function Workspace() {
     api.observations(areaId).then((r) => {
       setObservations(r.observations);
       setObsStatus("idle");
-      // preselect the most recent processed pair from one repeat-pass stack, if any
+      // preselect the study area's featured pair, else the most recent processed same-track pair
       const proc = r.observations.filter((o) => o.ingested_layers.includes("A_HHHH"));
-      for (let i = proc.length - 1; i > 0; i--) {
+      const feat = areas.find((x) => x.id === areaId)?.featured_pair;
+      let pairIds: [string, string] | null = null;
+      if (feat) {
+        const e = proc.find((o) => o.date === feat[0]);
+        const l = proc.find((o) => o.date === feat[1]);
+        if (e && l) pairIds = [e.id, l.id];
+      }
+      for (let i = proc.length - 1; !pairIds && i > 0; i--) {
         const l = proc[i];
         const e = [...proc.slice(0, i)].reverse().find((o) => o.track === l.track && o.pass_direction === l.pass_direction);
-        if (e) {
-          setEarlierId(e.id);
-          setLaterId(l.id);
-          // reopen the newest stored result for this pair so the first view is the finding, not an empty sheet
-          api.analyses(areaId).then((list) => {
-            const hit = list.find((x) => x.earlier_id === e.id && x.later_id === l.id && !x.subset);
-            if (hit) finishRef.current?.(hit.id, true);
-          }).catch(() => undefined);
-          break;
-        }
+        if (e) pairIds = [e.id, l.id];
+      }
+      if (pairIds) {
+        const [eid, lid] = pairIds;
+        setEarlierId(eid);
+        setLaterId(lid);
+        // reopen the newest stored result for this pair so the first view is the finding, not an empty sheet
+        api.analyses(areaId).then((list) => {
+          const hit = list.find((x) => x.earlier_id === eid && x.later_id === lid && !x.subset);
+          if (hit) finishRef.current?.(hit.id, true);
+        }).catch(() => undefined);
       }
     }).catch(() => setObsStatus("error"));
     api.observations(areaId, "RCM").then((r) => setRcmReason(r.status === "available" ? null : r.reason ?? "No RCM data.")).catch(() => setRcmReason("RCM availability could not be checked."));
-  }, [areaId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areaId, areas.length]);
 
   const req = useMemo<AnalysisRequest | null>(() => (areaId && earlierId && laterId ? { study_area_id: areaId, earlier_id: earlierId, later_id: laterId, sensor, config, geometry: drawn } : null), [areaId, earlierId, laterId, sensor, config, drawn]);
 
@@ -156,11 +169,13 @@ export default function Workspace() {
     const l = await api.layers(aid);
     setStoredAt(stored ? r.created_at : null);
     setConfig({ ...DEFAULT_CONFIG, ...(r.config as AnalysisConfig) });
-    setView("change");
+    const startView: View = l.layers.some((x) => x.id === "water_change") ? "water" : "change";
+    setView(startView);
     setSwipe(false);
     setResult(r);
     setLayers(l.layers);
-    setLayerState(Object.fromEntries(l.layers.map((x) => [x.id, { visible: DEFAULT_VISIBLE.has(x.id) || x.id === "earlier_db", opacity: 1 }])));
+    const on = new Set(VIEWS.find((v) => v.id === startView)?.layers ?? []);
+    setLayerState(Object.fromEntries(l.layers.map((x) => [x.id, { visible: on.has(x.id), opacity: 1 }])));
     setLayerOrder(PLY_ORDER.filter((id) => l.layers.some((x) => x.id === id)));
     setRunning(false);
     setStage(null);
@@ -204,6 +219,16 @@ export default function Workspace() {
   const onDrawn = useCallback((p: Polygon | null) => { setDrawn(p); setDrawing(false); }, []);
 
   const mapArea = flyBox ?? area;
+
+  // each tour step sets the map view and opens the matching section of the results panel
+  useEffect(() => {
+    if (tour === null) return;
+    const st = tourSteps[tour];
+    if (!st) return;
+    applyView(st.view);
+    document.querySelectorAll<HTMLDetailsElement>("details[id^='fold-']").forEach((d) => { d.open = d.id === st.fold; });
+    if (st.fold) document.getElementById(st.fold)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [tour, tourSteps, applyView]);
 
   return (
     <div className="flex min-h-screen flex-col bg-housing-0 lg:h-screen lg:overflow-hidden">
@@ -251,7 +276,7 @@ export default function Workspace() {
           <div className="flex flex-wrap items-center gap-2 py-1.5">
             {result ? (
               <div className="flex rounded-[3px] border border-rule p-0.5" role="radiogroup" aria-label="Map view">
-                {VIEWS.map((v) => (
+                {VIEWS.filter((v) => !v.needs || layers.some((x) => x.id === v.needs)).map((v) => (
                   <button key={v.id} type="button" role="radio" aria-checked={view === v.id} title={v.hint} onClick={() => applyView(v.id)}
                     className={`rounded-[2px] px-2.5 py-1 text-[12px] ${view === v.id ? "bg-marker font-semibold text-marker-ink" : "text-ink-2 hover:text-ink"}`}>
                     {v.label}
@@ -280,9 +305,14 @@ export default function Workspace() {
                 </button>
               ))}
             </div>
-            {result && <span className="ml-auto text-[11.5px] text-ink-3">Click any pixel to read its values</span>}
+            {result && tourSteps.length > 0 && (
+              <button type="button" onClick={() => setTour(0)} className="ml-auto rounded-[3px] border border-marker px-2.5 py-1 text-[12px] font-semibold text-marker hover:bg-marker hover:text-marker-ink">
+                Take the 1-minute tour
+              </button>
+            )}
           </div>
           <div className="relative min-h-0 flex-1">
+            {tour !== null && <StoryTour steps={tourSteps} index={tour} onIndex={setTour} onClose={() => setTour(null)} />}
             {result && <MapLegend layers={layers} state={layerState} order={layerOrder} swipe={swipe} captions={[earlier?.date, later?.date]} />}
             <LightTableMap
               studyArea={mapArea}

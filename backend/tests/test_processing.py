@@ -135,3 +135,34 @@ def test_data_paths_relative_and_legacy_absolute():
     legacy = "/Users/someone/elsewhere/data/processed/observations/a/b.tif"
     assert config.resolve_data_path(legacy) == config.DATA_DIR / "processed/observations/a/b.tif"
     assert config.to_data_relative(config.DATA_DIR / "processed" / "y.tif") == "processed/y.tif"
+
+
+def test_binary_metrics_known_values():
+    from backend.validation.accuracy import binary_metrics
+
+    pred = np.array([1, 1, 1, 0, 0, 0, 0, 0], bool)
+    ref = np.array([1, 1, 0, 1, 0, 0, 0, 0], bool)
+    m = binary_metrics(pred, ref, np.ones(8, bool))
+    assert (m["tp"], m["fp"], m["fn"], m["tn"]) == (2, 1, 1, 4)
+    assert m["precision"] == pytest.approx(2 / 3, abs=1e-4) and m["recall"] == pytest.approx(2 / 3, abs=1e-4)
+    assert m["iou"] == pytest.approx(0.5) and m["overall_accuracy"] == pytest.approx(0.75)
+    assert m["kappa"] == pytest.approx(0.4667, abs=1e-3)
+    empty = binary_metrics(np.zeros(4, bool), np.zeros(4, bool), np.ones(4, bool))
+    assert empty["precision"] is None and empty["iou"] is None
+
+
+def test_otsu_and_water_change():
+    from backend.processing import water as w
+
+    rng = np.random.default_rng(3)
+    db = np.where(rng.random((200, 200)) < 0.4, rng.normal(-22, 1.0, (200, 200)), rng.normal(-9, 1.5, (200, 200)))
+    t = w.otsu_threshold(db)
+    assert -18 < t < -13
+    valid = np.ones(db.shape, bool)
+    e = w.water_map(db, t, valid)
+    assert abs((e == w.WATER).mean() - 0.4) < 0.02
+    later = e.copy()
+    later[:10] = w.LAND
+    ch = w.water_change(e, later)
+    assert (ch[:10][e[:10] == w.WATER] == w.WATER_LOST).all()
+    assert (ch[10:][e[10:] == w.WATER] == w.PERSISTENT_WATER).all()

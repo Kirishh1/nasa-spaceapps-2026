@@ -61,3 +61,28 @@ All parameters are exposed in the UI and stored with every result.
 - It then labels each cell as agreement (stable / decrease / increase), change in only one sensor, or opposite directions.
 - Raw L-band and C-band backscatter are never subtracted from each other.
 - It stays inactive until calibrated RCM data is ingested.
+
+## Open-water mapping (added for the monsoon case study)
+- **Water/land split.** On each date, open water = speckle-filtered HH backscatter below a threshold.
+- **Threshold choice.** The threshold is chosen per image with Otsu's method on the dB histogram, searched within −24 to −10 dB, a physically plausible window for L-band HH.
+- **When the split is unclear.** The threshold is used only if the histogram is clearly two-peaked: Otsu's separability η = σ²_between / σ²_total ≥ 0.7. A single bell curve always gives η ≈ 2/π ≈ 0.64, so 0.7 sits just above that.
+  - If one date fails (for example, almost no water), it reuses the other date's threshold.
+  - If both fail, the fixed configured value is used.
+  - The method and η are stored with every result. The Sylhet scenes give η 0.74–0.80.
+- **Small patches.** Open-water patches smaller than the minimum region (2 ha) are removed.
+- **Water change classes.** Land on both dates, water on both dates, water gained, water receded.
+- **Flooded vegetation** can appear *brighter* than land (double bounce), so it is deliberately not counted as open water. It is flagged separately, as increases inside tree, wetland and mangrove cover.
+
+## Validation against NASA OPERA (see validation.md)
+- For each NISAR date, the closest OPERA DSWx-S1 and DSWx-HLS water maps within ±2 days are mosaicked onto the NISAR grid (nearest neighbour, 30 → 20 m).
+- Optical maps must be at least 50% cloud-free over the basin. Radar maps must cover at least 30%.
+- Pixels count only where both maps have valid data.
+- Metrics: precision, recall, F1, IoU, overall accuracy and Cohen's κ, for open water. The "all water" variant also counts DSWx-S1 inundated vegetation and DSWx-HLS partial surface water.
+- A threshold-sensitivity sweep (±3 dB around the chosen threshold) is stored with every comparison.
+
+## L-band vs C-band comparison
+- **Independent C-band map.** Sentinel-1 VV backscatter (OPERA RTC-S1, linear γ⁰, 30 m) from a single orbit, near both NISAR dates, is mosaicked onto the NISAR grid. It goes through the same Lee filter, dB, ΔB and ±3 dB classes as NISAR, on its own data.
+- **Pass selection.** The pair is the same-orbit Sentinel-1 passes that minimise the total date offset from the NISAR pair (for the case study: orbit 41, 19 Jun and 12 Oct).
+- **Common grid.** Both class maps are aggregated to 100 m cells. A cell takes "decrease" or "increase" when that class covers at least 30% of its valid pixels, and is "no data" when under half of it is valid.
+- **Agreement classes.** Cells are compared as: both stable, both decrease, both increase, L-band only, C-band only, or opposite directions. These are reported overall and per ESA WorldCover land-cover class (dominant class per cell).
+- **No cross-sensor differencing.** Raw L- and C-band backscatter are never subtracted from each other.

@@ -299,11 +299,21 @@ export function ToolTray(p: Props) {
         <details className="group mb-3 rounded-[3px] border border-rule-soft">
           <summary className="flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-[12px] text-ink-2 hover:text-ink">
             <span>Settings</span>
-            <span className="num whitespace-nowrap text-[11px] text-ink-3">±{p.config.threshold_db} dB · {p.config.water_threshold_db} dB · {p.config.speckle_filter} {p.config.filter_size}×{p.config.filter_size}</span>
+            <span className="num whitespace-nowrap text-[11px] text-ink-3">±{p.config.threshold_db} dB · {p.config.water_threshold_mode === "fixed" ? `${p.config.water_threshold_db} dB` : "auto"} · {p.config.speckle_filter} {p.config.filter_size}×{p.config.filter_size}</span>
           </summary>
           <div className="border-t border-rule-soft px-2.5 pt-3">
             <Slider label="Change threshold |ΔB|" value={p.config.threshold_db} min={1} max={8} step={0.5} unit=" dB" onChange={(v) => p.onConfig({ ...p.config, threshold_db: v })} hint="Pixels changing less than this are classed as limited change." />
-            <Slider label="Open-water threshold" value={p.config.water_threshold_db} min={-26} max={-12} step={0.5} unit=" dB" onChange={(v) => p.onConfig({ ...p.config, water_threshold_db: v })} hint="Later backscatter below this, after a decrease, is water-like." />
+            <div className="mb-3">
+              <label htmlFor="wmode" className="label mb-1 block">Open-water threshold</label>
+              <select id="wmode" value={p.config.water_threshold_mode ?? "otsu"} onChange={(e) => p.onConfig({ ...p.config, water_threshold_mode: e.target.value as "otsu" | "fixed" })} className="w-full rounded-[3px] border border-rule bg-housing-2 px-2 py-1.5 text-[13px] text-ink">
+                <option value="otsu">Automatic per image (Otsu)</option>
+                <option value="fixed">Fixed value</option>
+              </select>
+              <p className="mt-0.5 text-[11px] leading-snug text-ink-3">Backscatter below the threshold is mapped as open water.</p>
+            </div>
+            {p.config.water_threshold_mode === "fixed" && (
+              <Slider label="Fixed water threshold" value={p.config.water_threshold_db} min={-26} max={-8} step={0.5} unit=" dB" onChange={(v) => p.onConfig({ ...p.config, water_threshold_db: v })} hint="Used for both dates." />
+            )}
             <Slider label="Minimum connected area" value={p.config.min_region_m2 / 10000} min={0} max={20} step={0.5} unit=" ha" onChange={(v) => p.onConfig({ ...p.config, min_region_m2: v * 10000 })} hint="Smaller isolated patches are not flagged as potential inundation." />
             <div className="mb-3 grid grid-cols-2 gap-2">
               <div>
