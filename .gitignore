@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/raw/*
+data/processed/*
+data/reference/*
+!data/**/.gitkeep
+frontend/node_modules/
+frontend/.next/
+.pytest_cache/
+.DS_Store

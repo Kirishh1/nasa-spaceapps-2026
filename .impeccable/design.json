@@ -1,0 +1,539 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-15T04:21:45+00:00",
+  "title": "Design System: SAR-Pulse",
+  "extensions": {
+    "colorMeta": {
+      "housing-0": {
+        "role": "neutral",
+        "displayName": "Housing Black",
+        "canonical": "oklch(20.7% 0.004 229)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#222425",
+          "#3e4041",
+          "#5c5e5f",
+          "#7c7d7e",
+          "#9d9f9f",
+          "#c3c4c5",
+          "#eeeeef"
+        ]
+      },
+      "housing-1": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "oklch(23.8% 0.005 248)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#222426",
+          "#3e4042",
+          "#5c5e60",
+          "#7c7d7f",
+          "#9d9ea0",
+          "#c3c4c5",
+          "#eeeeef"
+        ]
+      },
+      "housing-2": {
+        "role": "neutral",
+        "displayName": "Graphite Raised",
+        "canonical": "oklch(27.5% 0.007 248)",
+        "tonalRamp": [
+          "#090b0e",
+          "#212427",
+          "#3d4043",
+          "#5b5e61",
+          "#7b7d80",
+          "#9c9fa1",
+          "#c2c4c6",
+          "#edeff0"
+        ]
+      },
+      "housing-3": {
+        "role": "neutral",
+        "displayName": "Graphite Pressed",
+        "canonical": "oklch(31.6% 0.008 256)",
+        "tonalRamp": [
+          "#090b0e",
+          "#222428",
+          "#3d4044",
+          "#5b5e62",
+          "#7b7d81",
+          "#9c9fa2",
+          "#c2c4c7",
+          "#edeef0"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "oklch(36.2% 0.010 254)",
+        "tonalRamp": [
+          "#090b0f",
+          "#212428",
+          "#3c4045",
+          "#5a5e63",
+          "#7a7e82",
+          "#9c9fa3",
+          "#c2c4c8",
+          "#eceff1"
+        ]
+      },
+      "rule-soft": {
+        "role": "neutral",
+        "displayName": "Soft Rule",
+        "canonical": "oklch(30.4% 0.008 256)",
+        "tonalRamp": [
+          "#090b0e",
+          "#212428",
+          "#3d4044",
+          "#5b5e62",
+          "#7b7d81",
+          "#9c9fa1",
+          "#c2c4c7",
+          "#edeef0"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Table Ink",
+        "canonical": "oklch(92.5% 0.007 89)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#242423",
+          "#40403e",
+          "#5e5d5b",
+          "#7e7d7a",
+          "#a09e9b",
+          "#c6c4c0",
+          "#f0eee9"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "oklch(77.9% 0.009 92)",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#252422",
+          "#41403d",
+          "#5f5d5a",
+          "#7f7d79",
+          "#a09e99",
+          "#c6c4be",
+          "#f0eee9"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Graphite Ink",
+        "canonical": "oklch(64.0% 0.009 92)",
+        "tonalRamp": [
+          "#0c0b09",
+          "#252421",
+          "#41403c",
+          "#5f5d59",
+          "#7f7d78",
+          "#a09e98",
+          "#c6c4bf",
+          "#f0eeea"
+        ]
+      },
+      "opal": {
+        "role": "neutral",
+        "displayName": "Opal Light",
+        "canonical": "oklch(89.0% 0.009 129)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#232423",
+          "#3f403e",
+          "#5d5e5b",
+          "#7c7e7a",
+          "#9d9f9b",
+          "#c2c5c0",
+          "#edf0ea"
+        ]
+      },
+      "marker": {
+        "role": "primary",
+        "displayName": "China Marker Yellow",
+        "canonical": "oklch(84.1% 0.155 89)",
+        "tonalRamp": [
+          "#130900",
+          "#302200",
+          "#513d00",
+          "#745a00",
+          "#997910",
+          "#bf9923",
+          "#ebbe37",
+          "#ffea7a"
+        ]
+      },
+      "marker-ink": {
+        "role": "neutral",
+        "displayName": "Marker Ink",
+        "canonical": "oklch(21.8% 0.019 93)",
+        "tonalRamp": [
+          "#0e0b04",
+          "#27241a",
+          "#424036",
+          "#605e55",
+          "#7f7d75",
+          "#a09e98",
+          "#c6c4bf",
+          "#efeeeb"
+        ]
+      },
+      "decrease": {
+        "role": "data",
+        "displayName": "Decrease Blue",
+        "canonical": "oklch(59.3% 0.156 254)",
+        "tonalRamp": [
+          "#00062e",
+          "#002254",
+          "#003f7d",
+          "#165da9",
+          "#2e7ed7",
+          "#5ca1f3",
+          "#8cc8ff",
+          "#c0f3ff"
+        ]
+      },
+      "increase": {
+        "role": "data",
+        "displayName": "Increase Orange",
+        "canonical": "oklch(70.3% 0.152 51)",
+        "tonalRamp": [
+          "#1f0000",
+          "#421300",
+          "#682c00",
+          "#90460d",
+          "#ba6224",
+          "#e77f39",
+          "#ffaa70",
+          "#ffd9a7"
+        ]
+      },
+      "limited": {
+        "role": "data",
+        "displayName": "Limited Grey",
+        "canonical": "oklch(55.1% 0.023 264)",
+        "tonalRamp": [
+          "#080b11",
+          "#20242c",
+          "#3b404a",
+          "#575e6a",
+          "#777d8b",
+          "#989fab",
+          "#bfc4d0",
+          "#eaeff8"
+        ]
+      },
+      "water": {
+        "role": "data",
+        "displayName": "Water Cyan",
+        "canonical": "oklch(79.7% 0.134 212)",
+        "tonalRamp": [
+          "#001016",
+          "#002b35",
+          "#004a57",
+          "#006b7b",
+          "#008da1",
+          "#07b2c9",
+          "#3adaf5",
+          "#8affff"
+        ]
+      },
+      "vegetated": {
+        "role": "data",
+        "displayName": "Vegetation Green",
+        "canonical": "oklch(84.9% 0.207 129)",
+        "tonalRamp": [
+          "#040f00",
+          "#172b00",
+          "#2d4a00",
+          "#466b00",
+          "#608e08",
+          "#7cb21d",
+          "#9bdc30",
+          "#c8ff74"
+        ]
+      },
+      "error": {
+        "role": "status",
+        "displayName": "Signal Red",
+        "canonical": "oklch(68.4% 0.167 29)",
+        "tonalRamp": [
+          "#230000",
+          "#480705",
+          "#702019",
+          "#9b392f",
+          "#c75346",
+          "#f37061",
+          "#ff9e8e",
+          "#ffcfbf"
+        ]
+      },
+      "warn": {
+        "role": "status",
+        "displayName": "Caution Amber",
+        "canonical": "oklch(80.9% 0.138 85)",
+        "tonalRamp": [
+          "#140900",
+          "#322100",
+          "#523c00",
+          "#75590f",
+          "#9a7823",
+          "#c19836",
+          "#ecbd4f",
+          "#ffe98e"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "SAR-Pulse in the header only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Study-area name heading the interpretation sheet."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Tool-tray step titles and sheet section titles."
+      },
+      "reading": {
+        "displayName": "Reading",
+        "purpose": "The interpretation sentence that states the result in words."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions, control text, select values."
+      },
+      "note": {
+        "displayName": "Note",
+        "purpose": "Hints under controls, caveats, method notes."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form and legend labels in Graphite Ink, sentence case."
+      },
+      "num": {
+        "displayName": "Num",
+        "purpose": "Every computed or measured value, tabular mono."
+      },
+      "strip": {
+        "displayName": "Strip",
+        "purpose": "Film-edge data strips, frame metadata, graticule coordinates; uppercase."
+      }
+    },
+    "shadows": [
+      {
+        "name": "backlight",
+        "value": "0 0 0 1px #0b0c0d, 0 0 0 6px var(--housing-1), 0 0 48px 6px rgba(217, 220, 214, 0.08), inset 0 0 0 1px rgba(217, 220, 214, 0.18)",
+        "purpose": "The map transparency only: black edge, graphite mat, opal glow, opal inner rim."
+      },
+      {
+        "name": "loupe-lift",
+        "value": "0 4px 14px rgba(0, 0, 0, 0.55)",
+        "purpose": "Swipe loupe handle; divider uses 0 0 10px rgba(0,0,0,0.6)."
+      },
+      {
+        "name": "map-chrome",
+        "value": "0 2px 8px rgba(0, 0, 0, 0.35)",
+        "purpose": "Native map zoom controls."
+      },
+      {
+        "name": "popup",
+        "value": "0 8px 24px rgba(0, 0, 0, 0.5)",
+        "purpose": "Pixel-reading popup over the map."
+      },
+      {
+        "name": "graticule-text",
+        "value": "0 1px 2px #000",
+        "purpose": "text-shadow on coordinate labels printed over imagery."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-color",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Tailwind default transition on colour/border hover of rows and buttons."
+      },
+      {
+        "name": "spin",
+        "value": "animate-spin (1s linear infinite)",
+        "purpose": "Loader icon while searching, checking or processing."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "transition-duration: 0ms; animation-duration: 0ms",
+        "purpose": "Applied under prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ],
+    "layout": {
+      "columns": "300px minmax(0,1fr) 372px",
+      "mapMobileHeight": "64vh, min 420px",
+      "filmStripHeight": "28px"
+    }
+  },
+  "components": [
+    {
+      "name": "Run Analysis Button",
+      "kind": "button",
+      "refersTo": "button-run",
+      "description": "The single primary action at the end of the decision chain.",
+      "html": "<button class=\"ds-btn-run\">Run analysis</button> <button class=\"ds-btn-run\" disabled>Run analysis</button>",
+      "css": ".ds-btn-run{font-family:var(--font-sans),system-ui,sans-serif;display:flex;width:240px;justify-content:center;background:var(--marker);color:var(--marker-ink);border:0;border-radius:3px;padding:10px 0;font-size:13px;font-weight:700;font-stretch:110%;cursor:pointer;transition:opacity .15s}.ds-btn-run:hover{opacity:.92}.ds-btn-run:focus-visible{outline:2px solid var(--marker);outline-offset:2px}.ds-btn-run:disabled{background:var(--housing-3);color:var(--ink-3);cursor:not-allowed}"
+    },
+    {
+      "name": "Tool Button",
+      "kind": "button",
+      "refersTo": "button-tool",
+      "description": "Secondary tray action; marker fill when the tool is active.",
+      "html": "<button class=\"ds-btn-tool\">Draw sub-area</button> <button class=\"ds-btn-tool ds-on\" aria-pressed=\"true\">Drag on the map…</button>",
+      "css": ".ds-btn-tool{font-family:var(--font-sans),system-ui,sans-serif;background:transparent;color:var(--ink-2);border:1px solid var(--rule);border-radius:3px;padding:6px 10px;font-size:12px;cursor:pointer;transition:color .15s,border-color .15s}.ds-btn-tool:hover{border-color:var(--ink-3);color:var(--ink)}.ds-btn-tool:focus-visible{outline:2px solid var(--marker);outline-offset:2px}.ds-btn-tool.ds-on{background:var(--marker);border-color:var(--marker);color:var(--marker-ink)}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "nav",
+      "refersTo": "segment-on",
+      "description": "Comparison mode and basemap switch above the map; disabled options are struck.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button class=\"ds-seg-b ds-on\">Overlay</button><button class=\"ds-seg-b\">Swipe earlier / later</button><button class=\"ds-seg-b\" disabled>Optical reference</button></div>",
+      "css": ".ds-seg{display:inline-flex;border:1px solid var(--rule);border-radius:3px;padding:2px;background:var(--housing-0)}.ds-seg-b{font-family:var(--font-sans),system-ui,sans-serif;background:transparent;color:var(--ink-3);border:0;border-radius:2px;padding:4px 10px;font-size:12px;cursor:pointer}.ds-seg-b:hover{color:var(--ink)}.ds-seg-b:focus-visible{outline:2px solid var(--marker);outline-offset:2px}.ds-seg-b.ds-on{background:var(--housing-3);color:var(--ink)}.ds-seg-b:disabled{text-decoration:line-through;opacity:.6;cursor:not-allowed}"
+    },
+    {
+      "name": "Sensor Chips",
+      "kind": "chip",
+      "refersTo": "frame-row-selected",
+      "description": "Sensor selector; unavailable sensors are dashed and struck with the reason shown.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip ds-on\">NISAR</button><button class=\"ds-chip\" disabled>RCM</button><button class=\"ds-chip\" disabled>L vs C</button></div>",
+      "css": ".ds-chips{display:grid;grid-template-columns:repeat(3,80px);gap:4px}.ds-chip{font-family:var(--font-sans),system-ui,sans-serif;background:transparent;color:var(--ink-2);border:1px solid var(--rule);border-radius:3px;padding:6px 0;font-size:12px;font-weight:600;cursor:pointer}.ds-chip:hover{color:var(--ink)}.ds-chip:focus-visible{outline:2px solid var(--marker);outline-offset:2px}.ds-chip.ds-on{border-color:var(--marker);background:rgba(243,197,58,.1);color:var(--marker)}.ds-chip:disabled{border-style:dashed;border-color:var(--rule-soft);color:var(--ink-3);text-decoration:line-through;cursor:not-allowed}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Select and text inputs in the tool tray.",
+      "html": "<label class=\"ds-label\" for=\"ds-q\">Find a place</label><input id=\"ds-q\" class=\"ds-input\" placeholder=\"Find a place on the map\">",
+      "css": ".ds-label{font-family:var(--font-sans),system-ui,sans-serif;display:block;margin-bottom:4px;font-size:11px;font-weight:600;letter-spacing:.04em;font-stretch:112%;color:var(--ink-3)}.ds-input{font-family:var(--font-sans),system-ui,sans-serif;width:240px;background:var(--housing-2);color:var(--ink);border:1px solid var(--rule);border-radius:3px;padding:6px 10px;font-size:13px}.ds-input::placeholder{color:var(--ink-3)}.ds-input:hover{border-color:var(--ink-3)}.ds-input:focus-visible{outline:2px solid var(--marker);outline-offset:2px}"
+    },
+    {
+      "name": "Frame Row",
+      "kind": "custom",
+      "refersTo": "frame-row",
+      "description": "Observation in the decision chain: live, selected, or unusable with its reason stamped.",
+      "html": "<div class=\"ds-frames\"><button class=\"ds-frame\"><span class=\"ds-date\">2026-10-28</span><span class=\"ds-strip\">T069 A · F014 · HH+HV</span></button><button class=\"ds-frame ds-sel\"><span class=\"ds-date\">2026-11-09</span><span class=\"ds-strip\">T069 A · F014 · HH+HV</span></button><button class=\"ds-frame ds-bad\" disabled><span class=\"ds-date\">2026-11-02</span><span class=\"ds-strip\">T112 D · F031 · HH+HV</span><span class=\"ds-why\"><span class=\"ds-stamp\">Unusable</span>Track 112 D ≠ 69 A</span></button></div>",
+      "css": ".ds-frames{display:flex;flex-direction:column;gap:4px;width:268px}.ds-frame{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:12px;text-align:left;background:transparent;border:1px solid var(--rule);border-radius:3px;padding:6px 10px;cursor:pointer;transition:background-color .15s,border-color .15s}.ds-frame:hover{border-color:var(--ink-3);background:var(--housing-2)}.ds-frame:focus-visible{outline:2px solid var(--marker);outline-offset:2px}.ds-date{font-family:var(--font-mono),ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink)}.ds-strip{font-family:var(--font-mono),ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-sel{border-color:var(--marker);background:rgba(243,197,58,.1)}.ds-sel .ds-date{color:var(--marker)}.ds-bad{border-style:dashed;border-color:var(--rule-soft);cursor:not-allowed}.ds-bad:hover{background:transparent;border-color:var(--rule-soft)}.ds-bad .ds-date{color:var(--ink-3);text-decoration:line-through}.ds-why{font-family:var(--font-sans),system-ui,sans-serif;grid-column:span 2;margin-top:2px;font-size:11px;color:var(--ink-3)}.ds-stamp{font-family:var(--font-sans),system-ui,sans-serif;display:inline-block;margin-right:6px;border:1px solid rgba(142,140,134,.6);border-radius:2px;padding:0 4px;font-size:10.5px;font-weight:600;letter-spacing:.025em;text-transform:uppercase}"
+    },
+    {
+      "name": "Decision Chain Step",
+      "kind": "custom",
+      "refersTo": "step-marker",
+      "description": "Numbered step markers: solid done, ringed next, dashed waiting.",
+      "html": "<div class=\"ds-steps\"><div class=\"ds-step\"><span class=\"ds-n ds-done\">1</span><b>Study area</b></div><div class=\"ds-step\"><span class=\"ds-n ds-next\">2</span><b>Frames to compare</b></div><div class=\"ds-step ds-wait\"><span class=\"ds-n\">3</span><b>Run change detection</b></div></div>",
+      "css": ".ds-steps{display:flex;flex-direction:column;gap:14px}.ds-step{font-family:var(--font-sans),system-ui,sans-serif;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;font-stretch:108%;color:var(--ink)}.ds-step b{font-weight:600}.ds-n{font-family:var(--font-mono),ui-monospace,monospace;font-variant-numeric:tabular-nums;display:flex;width:18px;height:18px;align-items:center;justify-content:center;border-radius:9999px;font-size:10px;font-weight:700;border:1px dashed var(--ink-3);color:var(--ink-3)}.ds-done{background:var(--marker);color:var(--marker-ink);border:0}.ds-next{border:1.5px solid var(--marker);color:var(--marker)}.ds-wait{color:var(--ink-3)}"
+    },
+    {
+      "name": "Light Table Transparency",
+      "kind": "card",
+      "refersTo": null,
+      "description": "The backlit map frame with fiducials and film-edge strips above and below.",
+      "html": "<div class=\"ds-lt\"><div class=\"ds-fs\"><span style=\"color:var(--ink)\">Earlier · 2026-10-28</span><span>NISAR L-band GCOV · HH</span><span>Track 069 A · Frame 014</span></div><div class=\"ds-film\"><svg class=\"ds-fid\" style=\"top:12px;left:12px\" width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" fill=\"none\" stroke=\"rgba(232,230,225,0.75)\"><circle cx=\"11\" cy=\"11\" r=\"6\"/><path d=\"M11 0v8M11 14v8M0 11h8M14 11h8\"/></svg><svg class=\"ds-fid\" style=\"top:12px;right:12px\" width=\"22\" height=\"22\" viewBox=\"0 0 22 22\" fill=\"none\" stroke=\"rgba(232,230,225,0.75)\"><circle cx=\"11\" cy=\"11\" r=\"6\"/><path d=\"M11 0v8M11 14v8M0 11h8M14 11h8\"/></svg></div><div class=\"ds-fs\"><span style=\"color:var(--marker)\">Later · 2026-11-09</span><span>NISAR L-band GCOV · HH</span><span>08:14:22 UTC</span></div></div>",
+      "css": ".ds-lt{width:420px;padding:0 8px}.ds-fs{font-family:var(--font-mono),ui-monospace,monospace;font-variant-numeric:tabular-nums;display:flex;gap:20px;height:28px;align-items:center;white-space:nowrap;overflow:hidden;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}.ds-film{position:relative;height:200px;border-radius:2px;background:#121415;box-shadow:0 0 0 1px #0b0c0d,0 0 0 6px var(--housing-1),0 0 48px 6px rgba(217,220,214,.08),inset 0 0 0 1px rgba(217,220,214,.18)}.ds-fid{position:absolute}"
+    },
+    {
+      "name": "Unavailable Notice",
+      "kind": "card",
+      "refersTo": "stamp",
+      "description": "How missing data is shown: dashed box, stamp, reason.",
+      "html": "<p class=\"ds-na\"><span class=\"ds-stamp2\">Unavailable</span>No RCM data has been ingested for this study area.</p> <p class=\"ds-nv\"><span class=\"ds-stamp3\">Not validated</span>Results are not independently validated.</p>",
+      "css": ".ds-na{font-family:var(--font-sans),system-ui,sans-serif;width:320px;border:1px dashed var(--rule);border-radius:3px;padding:10px 12px;font-size:12px;line-height:1.625;color:var(--ink-2)}.ds-stamp2{display:inline-block;margin-right:6px;border:1px solid rgba(142,140,134,.6);border-radius:2px;padding:0 4px;font-size:10.5px;font-weight:600;letter-spacing:.025em;text-transform:uppercase;color:var(--ink-3)}.ds-nv{font-family:var(--font-sans),system-ui,sans-serif;width:320px;font-size:12.5px;line-height:1.625;color:var(--ink)}.ds-stamp3{display:inline-block;margin-right:6px;background:var(--marker);color:var(--marker-ink);border-radius:2px;padding:0 4px;font-size:10.5px;font-weight:700;letter-spacing:.025em;text-transform:uppercase}"
+    },
+    {
+      "name": "Labeled Value Rows",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Interpretation-sheet key/value rows; data inks always beside their class names.",
+      "html": "<dl class=\"ds-rows\"><div><dt><i style=\"background:var(--decrease)\"></i>Significant decrease</dt><dd>41.2<span> km² · 6.3%</span></dd></div><div><dt><i style=\"background:var(--increase)\"></i>Significant increase</dt><dd>12.8<span> km² · 2.0%</span></dd></div><div><dt><i style=\"background:var(--limited)\"></i>Limited change</dt><dd>590<span> km² · 91.7%</span></dd></div></dl>",
+      "css": ".ds-rows{width:320px;margin:0;border-top:1px solid var(--rule);padding-top:10px}.ds-rows div{display:grid;grid-template-columns:1fr auto;align-items:baseline;column-gap:12px;padding:3px 0}.ds-rows dt{font-family:var(--font-sans),system-ui,sans-serif;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3)}.ds-rows i{width:8px;height:8px;display:inline-block}.ds-rows dd{font-family:var(--font-mono),ui-monospace,monospace;font-variant-numeric:tabular-nums;margin:0;text-align:right;font-size:12.5px;color:var(--ink)}.ds-rows dd span{color:var(--ink-3);margin-left:4px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Interpreter's Light Table",
+    "overview": "Two dated radar frames are laid on a backlit table and compared with a loupe and a china marker. The housing is graphite, nearly black and faintly cool; the map is the lit transparency at its centre, registered by aerial-film fiducials at its corners and graticule ticks on its edges. Everything around the transparency is the table's furniture: a tool tray on the left that walks the decision chain, an interpretation sheet on the right that reads the result back in sentences, and film-edge data strips printed along the map's top and bottom.\n\nThe system is dense and quiet. Chrome is hairline rules and graphite steps, not cards. There is exactly one hand-drawn colour, china-marker yellow, and it marks what the interpreter has chosen or must do next. Data colour belongs to the data: decrease blue and increase orange always travel with their words. State is carried by line form as well as hue, so the interface reads on a washed-out projector and for colour-blind viewers.\n\nMeasured values are printed, not designed: monospace with tabular figures for every number, and a tracked uppercase mono strip for frame metadata. One variable-width grotesque (Archivo) does everything else, using its width axis rather than extra weights for hierarchy.",
+    "keyCharacteristics": [
+      "Graphite housing in four tonal steps; no cards, no stat tiles.",
+      "One accent (china marker) for selection, next action and focus.",
+      "Solid / dashed / struck line form encodes live / pending / disabled.",
+      "Every number in tabular mono; frame metadata in film-edge strips.",
+      "Map registered by fiducials and graticule ticks, framed by a soft backlight glow."
+    ],
+    "rules": [
+      {
+        "name": "The One Marker Rule",
+        "body": "China-marker yellow is the only accent and means \"chosen, next, or focused\". It never decorates and never encodes data.",
+        "section": "colors"
+      },
+      {
+        "name": "The Labeled Ink Rule",
+        "body": "A data ink never appears without its words: a legend label, a row label, or the reading sentence that names the class. Colour is never the only carrier.",
+        "section": "colors"
+      },
+      {
+        "name": "The Data Stays On The Film Rule",
+        "body": "Data inks (decrease, increase, limited, water, vegetated) describe pixels. They are not used for UI status, buttons or decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Printed Number Rule",
+        "body": "Every number that came from processing is set in tabular mono. Prose words around it stay in Archivo.",
+        "section": "typography"
+      },
+      {
+        "name": "The Width Not Weight Rule",
+        "body": "Hierarchy steps by width axis and size; weights stop at 400, 600 and 700.",
+        "section": "typography"
+      },
+      {
+        "name": "The Map Fills The Table Rule",
+        "body": "The transparency takes all remaining space; nothing floats over it except registration marks, the loupe and native map controls.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Light Source Rule",
+        "body": "Only the transparency glows. Panels, sections and controls never get a shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Line Form Rule",
+        "body": "Every stateful element changes its line (solid, dashed, struck) as well as its colour. Hue alone never signals state.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do use china-marker yellow only for selection, the next action, focus and the later frame.",
+      "Do pair every data ink with its class name in text, in legends, rows and sentences.",
+      "Do change line form with state: solid for live, dashed for pending or unavailable, struck for disabled.",
+      "Do set every processed number in tabular mono, with units in graphite ink.",
+      "Do keep incompatible frames visible, stamped and followed by their reason.",
+      "Do show unavailable data as a dashed box with an \"Unavailable\" stamp and the reason.",
+      "Do separate regions with 1px rules and graphite tonal steps."
+    ],
+    "donts": [
+      "Don't introduce a second accent or use marker yellow decoratively.",
+      "Don't use data inks for UI status, buttons or decoration.",
+      "Don't put shadows on panels, sections or controls; only the transparency glows and only overlays on the film lift.",
+      "Don't add stat cards or tiles; results are rows and sentences on the sheet.",
+      "Don't signal state by colour alone.",
+      "Don't round corners past 3px on controls or 4px on map chrome."
+    ]
+  }
+}

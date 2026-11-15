@@ -1,0 +1,13 @@
+[
+  {
+    "id": "sylhet_haor",
+    "name": "Sylhet Haor Basin, Bangladesh",
+    "description": "Seasonal freshwater wetland basin (haors) in north-east Bangladesh. Haors are inundated during the monsoon and drain from October onward.",
+    "research_question": "Where did L-band backscatter change between consecutive NISAR repeat passes during post-monsoon haor drainage, and which changes are consistent with surface-water change?",
+    "bbox": [90.95, 24.75, 91.45, 25.15],
+    "stack_id": "069_A_014",
+    "frequency": "A",
+    "terms": ["HHHH", "HVHV"],
+    "multilook": 2
+  }
+]

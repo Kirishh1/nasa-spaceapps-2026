@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+:root {
+  /* graphite table housing */
+  --housing-0: #161819;
+  --housing-1: #1d1f21;
+  --housing-2: #25282b;
+  --housing-3: #2f3236;
+  --rule: #3a3e43;
+  --rule-soft: #2c2f33;
+  /* ink on housing */
+  --ink: #e8e6e1;
+  --ink-2: #b9b7b1;
+  --ink-3: #8e8c86;
+  /* opal light of the table */
+  --opal: #d9dcd6;
+  /* china marker, the one accent */
+  --marker: #f3c53a;
+  --marker-ink: #1d1a10;
+  /* change classes */
+  --decrease: #2f7fd8;
+  --increase: #e8803a;
+  --limited: #6b7280;
+  --water: #22d3ee;
+  --vegetated: #a3e635;
+  --error: #ef6a5b;
+  --warn: #e9b949;
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --color-housing-0: var(--housing-0);
+  --color-housing-1: var(--housing-1);
+  --color-housing-2: var(--housing-2);
+  --color-housing-3: var(--housing-3);
+  --color-rule: var(--rule);
+  --color-rule-soft: var(--rule-soft);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-opal: var(--opal);
+  --color-marker: var(--marker);
+  --color-marker-ink: var(--marker-ink);
+  --color-decrease: var(--decrease);
+  --color-increase: var(--increase);
+  --color-limited: var(--limited);
+  --color-water: var(--water);
+  --color-vegetated: var(--vegetated);
+  --color-error: var(--error);
+  --color-warn: var(--warn);
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--housing-0);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--marker);
+  color: var(--marker-ink);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+:focus-visible {
+  outline: 2px solid var(--marker);
+  outline-offset: 2px;
+}
+
+.num {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* film-edge data strip: measured values printed along the transparency's rebate */
+.strip {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  font-stretch: 112%;
+}
+
+/* the backlit table glow around the transparency */
+.lighttable {
+  box-shadow:
+    0 0 0 1px #0b0c0d,
+    0 0 0 6px var(--housing-1),
+    0 0 48px 6px rgba(217, 220, 214, 0.08),
+    inset 0 0 0 1px rgba(217, 220, 214, 0.18);
+}
+
+/* MapLibre chrome in the table's material */
+.maplibregl-ctrl-group {
+  background: var(--housing-2) !important;
+  border: 1px solid var(--rule) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  border-radius: 4px !important;
+}
+.maplibregl-ctrl-group button { width: 30px; height: 30px; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid var(--rule) !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(0.9); }
+.maplibregl-ctrl-attrib {
+  background: rgba(22, 24, 25, 0.8) !important;
+  color: var(--ink-3) !important;
+  font-size: 10px;
+}
+.maplibregl-ctrl-attrib a { color: var(--ink-2) !important; }
+.maplibregl-ctrl-scale {
+  background: rgba(22, 24, 25, 0.75) !important;
+  color: var(--ink) !important;
+  border-color: var(--ink-2) !important;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+}
+.maplibregl-popup-content {
+  background: var(--housing-1) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--rule);
+  border-radius: 4px !important;
+  padding: 10px 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+.maplibregl-popup-tip { border-top-color: var(--rule) !important; border-bottom-color: var(--rule) !important; }
+.maplibregl-popup-close-button { color: var(--ink-3); font-size: 16px; padding: 2px 6px; }
+
+input[type="range"] {
+  accent-color: var(--marker);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
