@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.ndimage import uniform_filter
 
 
 def linear_to_db(power: np.ndarray) -> np.ndarray:
@@ -11,6 +10,19 @@ def linear_to_db(power: np.ndarray) -> np.ndarray:
     ok = np.isfinite(power) & (power > 0)
     out[ok] = 10.0 * np.log10(power[ok])
     return out
+
+
+def uniform_filter(a: np.ndarray, size: int) -> np.ndarray:
+    """Moving-window mean with mirrored edges, matching scipy.ndimage.uniform_filter(mode="reflect")
+    for odd window sizes. Implemented with an integral image so the deployed API needs no SciPy."""
+    if size % 2 == 0:
+        raise ValueError("window size must be odd")
+    r = size // 2
+    p = np.pad(np.asarray(a, dtype="float64"), r, mode="symmetric")
+    ii = np.zeros((p.shape[0] + 1, p.shape[1] + 1))
+    ii[1:, 1:] = p.cumsum(0).cumsum(1)
+    s = ii[size:, size:] - ii[:-size, size:] - ii[size:, :-size] + ii[:-size, :-size]
+    return s / (size * size)
 
 
 def _nan_uniform(x: np.ndarray, size: int) -> tuple[np.ndarray, np.ndarray]:

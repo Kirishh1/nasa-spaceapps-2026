@@ -1,7 +1,22 @@
+# Secrets: never upload
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+.vercel
+
+# Local data (the deployment reads from Vercel Blob)
+data/raw
+data/processed
+data/reference
+data/.blobcache
+
+# Build and tool artifacts
 .venv
 **/node_modules
 frontend/.next
-data/raw
 .pytest_cache
 **/__pycache__
 .impeccable
+.ruff_cache

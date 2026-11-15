@@ -8,6 +8,7 @@ from rasterio.warp import transform as warp_transform
 from rio_tiler.colormap import cmap
 from rio_tiler.errors import TileOutsideBounds
 from rio_tiler.io import Reader
+from rio_tiler.utils import render
 
 from backend.api.layers import LAYERS, categorical_cmap
 from backend.processing import pipeline
@@ -15,15 +16,11 @@ from backend.processing import pipeline
 router = APIRouter(tags=["tiles"])
 
 
+# PNGs are encoded with rio-tiler/GDAL (already a dependency) rather than Pillow, which the
+# deployed API does not install.
 @lru_cache(maxsize=1)
 def _empty_png() -> bytes:
-    import io
-
-    from PIL import Image
-
-    buf = io.BytesIO()
-    Image.new("RGBA", (256, 256), (0, 0, 0, 0)).save(buf, format="PNG")
-    return buf.getvalue()
+    return render(np.zeros((4, 256, 256), dtype="uint8"), img_format="PNG")
 
 
 def _path(aid: str, layer: str):
@@ -46,17 +43,11 @@ def tile(aid: str, layer: str, z: int, x: int, y: int):
                 img = r.tile(x, y, z, tilesize=256, resampling_method="nearest")
                 cm = categorical_cmap(layer)
                 data = img.data[0]
-                rgba = np.zeros((256, 256, 4), dtype="uint8")
+                rgba = np.zeros((4, 256, 256), dtype="uint8")  # band-first for GDAL
                 for v, c in cm.items():
-                    rgba[data == v] = c
-                rgba[img.mask == 0] = 0
-                import io
-
-                from PIL import Image
-
-                buf = io.BytesIO()
-                Image.fromarray(rgba, "RGBA").save(buf, format="PNG")
-                return Response(buf.getvalue(), media_type="image/png", headers=headers)
+                    rgba[:, data == v] = np.array(c, dtype="uint8")[:, None]
+                rgba[:, img.mask == 0] = 0
+                return Response(render(rgba, img_format="PNG"), media_type="image/png", headers=headers)
             img = r.tile(x, y, z, tilesize=256, resampling_method="bilinear")
             if layer == "jrc_occurrence":
                 img.array.mask |= img.array.data == 0

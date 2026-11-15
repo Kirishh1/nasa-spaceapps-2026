@@ -13,7 +13,7 @@ Outputs are *potential* indicators, not confirmed flood maps.
 from __future__ import annotations
 
 import numpy as np
-from scipy.ndimage import label
+from rasterio.features import sieve
 
 from backend.processing.change_detection import DECREASE, INCREASE
 
@@ -32,15 +32,14 @@ VEGETATION_CLASSES = (10, 90, 95)  # tree cover, herbaceous wetland, mangroves
 
 
 def remove_small(mask: np.ndarray, min_pixels: int) -> np.ndarray:
-    if min_pixels <= 1:
+    """Drop 8-connected True regions smaller than ``min_pixels`` (GDAL sieve, bundled with rasterio).
+
+    Sieving also fills small False holes; AND-ing with the input keeps the result a subset of ``mask``.
+    """
+    if min_pixels <= 1 or not mask.any():
         return mask
-    lab, n = label(mask, structure=np.ones((3, 3)))
-    if n == 0:
-        return mask
-    sizes = np.bincount(lab.ravel())
-    keep = sizes >= min_pixels
-    keep[0] = False
-    return keep[lab]
+    kept = sieve(mask.astype("uint8"), size=int(min_pixels), connectivity=8).astype(bool)
+    return kept & mask
 
 
 def potential_inundation(

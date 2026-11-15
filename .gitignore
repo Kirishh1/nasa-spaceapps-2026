@@ -12,3 +12,5 @@ frontend/.next/
 .DS_Store
 data/.blobcache/
 .vercel
+.env*
+!.env.example
