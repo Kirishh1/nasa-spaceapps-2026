@@ -133,3 +133,14 @@ def test_api_sync_mode(setup, monkeypatch):
     aid = r.json()["id"]
     assert c.get(f"/api/analysis/{aid}").json()["status"] == "complete"
     assert any(a["id"] == aid for a in c.get("/api/analyses", params={"study_area": "test"}).json())
+
+
+def test_sources_lists_nasa_resources(setup):
+    from backend.api.main import app
+
+    c = TestClient(app)
+    s = c.get("/api/sources").json()
+    ids = {r["id"]: r for r in s["nasa"]}
+    assert ids["nisar_gcov"]["status"] == "used" and "C3622241360-ASF" in ids["nisar_gcov"]["identifier"]
+    assert ids["gpm_imerg"]["status"] in ("used", "integrated")
+    assert all(r["links"] or r["id"] in ("rcm", "basemaps") for r in s["nasa"] + s["other"])

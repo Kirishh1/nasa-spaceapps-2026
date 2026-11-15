@@ -189,6 +189,24 @@ export interface MapLayer {
   description: string;
 }
 
+export interface DataResource {
+  id: string;
+  name: string;
+  short_name?: string;
+  identifier?: string;
+  provider: string;
+  role: string;
+  status: "used" | "integrated" | "not_used";
+  status_note?: string;
+  links: { label: string; url: string }[];
+}
+
+export interface SourcesResponse {
+  nasa: DataResource[];
+  other: DataResource[];
+  granules?: { id: string; date: string; download_url: string | null; qa_report_url: string | null; product_version: string }[];
+}
+
 export interface StoredAnalysis {
   id: string;
   created_at: string;
@@ -241,6 +259,7 @@ export const api = {
   check: (req: AnalysisRequest) =>
     request<{ ok: boolean; errors: Issue[]; warnings: Issue[] }>("/api/analysis/check", { method: "POST", body: JSON.stringify(req) }),
   start: (req: AnalysisRequest) => request<{ id: string; status: string }>("/api/analysis", { method: "POST", body: JSON.stringify(req) }),
+  sources: (analysisId?: string) => request<SourcesResponse>(`/api/sources${analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : ""}`),
   analyses: (studyArea: string) => request<StoredAnalysis[]>(`/api/analyses?study_area=${encodeURIComponent(studyArea)}`),
   analysis: (id: string) => request<AnalysisResult | JobStatus>(`/api/analysis/${id}`),
   layers: (id: string) => request<{ id: string; layers: MapLayer[] }>(`/api/analysis/${id}/layers`),

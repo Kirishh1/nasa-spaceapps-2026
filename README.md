@@ -9,6 +9,21 @@ SAR-Pulse is a research tool for investigating environmental change with real **
 
 **Demo study area:** Sylhet Haor Basin, Bangladesh. It uses NISAR GCOV repeat pass track 69 ascending, frame 14, from 2026-10-28 to 2026-11-09.
 
+## NASA resources used
+
+| NASA resource | Identifier | What SAR-Pulse uses it for | Status |
+|---|---|---|---|
+| **NISAR L2 GCOV**, Geocoded Polarimetric Covariance (Validated, V1). NASA–ISRO mission, distributed by NASA's ASF DAAC | `NISAR_L2_GCOV_V1`, CMR collection [`C3622241360-ASF`](https://cmr.earthdata.nasa.gov/search/concepts/C3622241360-ASF.html) | **Primary data.** All radar frames, change maps, statistics and potential-inundation flags are computed from these L-band observations | ✅ Used |
+| **NASA Common Metadata Repository (CMR)** | [cmr.earthdata.nasa.gov/search](https://cmr.earthdata.nasa.gov/search/) | Finds NISAR acquisitions over the study area: dates, track, frame, polarizations, footprints, download and QA links | ✅ Used |
+| **NASA Earthdata Login** | [urs.earthdata.nasa.gov](https://urs.earthdata.nasa.gov/) | Authenticates the NISAR downloads | ✅ Used |
+| **GPM IMERG Late daily V07**. NASA GPM mission, distributed by NASA GES DISC | `GPM_3IMERGDL`, CMR collection `C2723754859-GES_DISC`, [doi:10.5067/GPM/IMERGDL/DAY/07](https://doi.org/10.5067/GPM/IMERGDL/DAY/07) | Rainfall around the acquisition dates (environmental context) | ⚠️ Integrated; GES DISC has not returned data to this account yet (needs the "NASA GESDISC DATA ARCHIVE" app authorized in Earthdata Login) |
+
+The demo result uses these two NISAR granules, from NASA's ASF DAAC:
+- `NISAR_L2_PR_GCOV_034_069_A_014_4005_DHDH_A_20261028T232132_20261028T232207_P05036_N_F_J_001` (28 Oct 2026)
+- `NISAR_L2_PR_GCOV_035_069_A_014_4005_DHDH_A_20261109T232132_20261109T232207_P05036_N_F_J_001` (9 Nov 2026)
+
+The same list is served live at `GET /api/sources` and shown in the app under **Data sources**. Non-NASA resources (JRC Global Surface Water, ESA WorldCover, Esri basemaps) and the unused RCM are listed there and in [docs/data_sources.md](docs/data_sources.md).
+
 ## Quick start
 
 Prerequisites: [uv](https://docs.astral.sh/uv/), Node ≥ 20, and a NASA Earthdata account.

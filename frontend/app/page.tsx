@@ -209,7 +209,7 @@ export default function Workspace() {
     <div className="flex min-h-screen flex-col bg-housing-0 lg:h-screen lg:overflow-hidden">
       <header className="flex flex-wrap items-center gap-x-6 gap-y-1 border-b border-rule px-4 py-2.5">
         <Wordmark />
-        <p className="text-[12.5px] text-ink-2">Reads real NISAR L-band radar frames, measures how backscatter changed between two dates, and shows how far to trust the result.</p>
+        <p className="text-[12.5px] text-ink-2">Reads real NASA–ISRO NISAR L-band radar frames from NASA’s Earthdata archive, measures how backscatter changed between two dates, and shows how far to trust the result.</p>
         <span className="ml-auto flex items-center gap-2 text-[11.5px] text-ink-3" role="status">
           <span className={`inline-block h-2 w-2 rounded-full ${backend === "ok" ? "bg-ink-2" : backend === "down" ? "bg-error" : "border border-dashed border-ink-3"}`} aria-hidden />
           {backend === "ok" ? "Backend connected" : backend === "down" ? "Backend unreachable" : "Connecting…"}

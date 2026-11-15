@@ -26,6 +26,22 @@ app.include_router(analysis.router, prefix="/api")
 app.include_router(tiles.router, prefix="/api")
 
 
+@app.get("/api/sources")
+def data_sources(analysis_id: str | None = None) -> dict:
+    """NASA and other data resources used by SAR-Pulse; GPM status reflects the given analysis."""
+    from backend import sources
+    from backend.processing import pipeline
+
+    result = pipeline.load_result(analysis_id) if analysis_id else None
+    out = sources.sources(result.get("precipitation") if result else None)
+    if result:
+        out["granules"] = [
+            {k: result[side].get(k) for k in ("id", "date", "download_url", "qa_report_url", "product_version")}
+            for side in ("earlier", "later")
+        ]
+    return out
+
+
 @app.get("/api/health")
 def health() -> dict:
     from backend import config

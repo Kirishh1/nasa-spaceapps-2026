@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 
 import type { AnalysisResult, Observation, StudyArea } from "@/services/api";
 import { ChangeHistogram } from "./ChangeHistogram";
+import { DataSources } from "./DataSources";
 import { RainfallStrip } from "./RainfallStrip";
 
 const km2 = (v: number) => (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v.toFixed(2));
@@ -83,6 +84,9 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
             <>Pick two dated frames in the tool tray. Statistics appear here only after the backend has processed real observations. Nothing on this sheet is precomputed.</>
           )}
         </div>
+        <div className="mt-5">
+          <DataSources compact />
+        </div>
         {area && (
           <dl className="mt-5">
             <Row k="Bounding box W, S" v={`${area.bbox[0].toFixed(3)}°, ${area.bbox[1].toFixed(3)}°`} />
@@ -116,6 +120,9 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
       {area?.research_question && (
         <p className="mt-3 border-l border-marker pl-3 text-[12.5px] leading-relaxed text-ink-2">{area.research_question}</p>
       )}
+      <div className="mt-3">
+        <DataSources analysisId={result.id} compact />
+      </div>
 
       {/* the reading, stated in sentences built from the computed values */}
       <p className="mt-4 text-[14px] leading-relaxed text-ink">
@@ -234,6 +241,10 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
             </tbody>
           </table>
         )}
+      </Section>
+
+      <Section title="Data sources">
+        <DataSources analysisId={result.id} />
       </Section>
 
       <Section title="Uncertainty & limitations">
