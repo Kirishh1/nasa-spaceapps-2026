@@ -263,7 +263,7 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
               })()}
               {cal?.status === "available" && (
                 <p className={`mt-3 text-[11.5px] leading-snug ${cal.stable ? "text-ink-3" : "text-warn"}`}>
-                  Calibration check: buildings and trees that stayed land moved by a median of <span className="num">{cal.median_delta_db?.toFixed(2)} dB</span>
+                  Calibration check: buildings and trees that stayed land moved by a median of <span className="num">{(Math.abs(cal.median_delta_db ?? 0) < 0.005 ? 0 : cal.median_delta_db ?? 0).toFixed(2)} dB</span>
                   {cal.stable ? ", so the two frames are radiometrically consistent." : ". That exceeds 0.5 dB, so part of the backscatter change here may be a calibration offset between product versions, not the surface."}
                 </p>
               )}
