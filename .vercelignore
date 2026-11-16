@@ -6,7 +6,7 @@
 **/.env.*
 .vercel
 
-# Local data (the deployment reads from Vercel Blob)
+# Local data. The deployment ships data_bundle/ instead (scripts/upload_to_blob.py --stage data_bundle)
 data/raw
 data/processed
 data/reference

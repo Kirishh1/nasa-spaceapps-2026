@@ -18,7 +18,7 @@ from pathlib import Path
 
 from backend import config
 
-MODE = os.environ.get("SARPULSE_STORAGE", "local").lower()
+MODE = "local" if config.BUNDLED else os.environ.get("SARPULSE_STORAGE", "local").lower()
 PREFIX = os.environ.get("SARPULSE_BLOB_PREFIX", "sarpulse").strip("/")
 ACCESS = os.environ.get("SARPULSE_BLOB_ACCESS", "private")  # must match how the store was created
 CACHE_DIR = Path(os.environ.get("SARPULSE_CACHE_DIR", "/tmp/sarpulse-cache" if os.environ.get("VERCEL") else config.DATA_DIR / ".blobcache"))

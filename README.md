@@ -100,19 +100,20 @@ r = run_analysis('sylhet_haor', '<earlier granule id>', '<later granule id>'); p
 
 The browser calls the API on the same origin (`/api/...`), so the services need no bindings.
 
-Data comes from **Vercel Blob**, because `data/` is not in git:
+Data ships **inside the deployment**, because `data/` is not in git and the Hobby plan's Blob limits were exceeded
+(the Blob store was deactivated). Git deployments are disabled in `vercel.json`; deploy from a machine that has the data:
 
-1. In the Vercel project, create a Blob store (**private** access) and connect it to the project.
-2. In the project's environment variables, set `SARPULSE_STORAGE=blob`.
-3. Locally, copy the store's `BLOB_READ_WRITE_TOKEN` into `.env`. Then, after `scripts/fetch_demo.py` has run, upload the demo data (about 180 MB):
-   ```bash
-   .venv/bin/python scripts/upload_to_blob.py --dry-run   # see what will be uploaded
-   .venv/bin/python scripts/upload_to_blob.py
-   ```
-4. Deploy with `vercel deploy`, or push to the connected Git repository.
+```bash
+.venv/bin/python scripts/upload_to_blob.py --stage data_bundle   # copies the ~950 MB the app needs into data_bundle/
+npx vercel deploy --prod                                           # uploads code + data_bundle
+```
+
+On Vercel the API detects `data_bundle/` and reads it read-only (`SARPULSE_STORAGE=blob` is ignored when a bundle is present).
+Blob mode still works for a store within its plan limits: remove `data_bundle/`, set `SARPULSE_STORAGE=blob`, and run
+`scripts/upload_to_blob.py` with `BLOB_READ_WRITE_TOKEN` set.
 
 On Vercel:
-- **Runtime behaviour:** analyses run inside the request (about 20 s; the function limit is 300 s) and write to `/tmp`. Results are then uploaded to Blob, so every instance can serve their tiles. Each instance downloads the rasters it needs into a `/tmp` cache on first use.
+- **Runtime behaviour:** analyses run inside the request (about 20 s; the function limit is 300 s) and write to `/tmp`. With bundled data, a new live analysis is visible only on the instance that computed it; the stored analyses are always available.
 - **Local testing:** `vercel dev` runs both services together.
 - **Rainfall:** GPM precipitation also needs `EARTHDATA_TOKEN` set as a project environment variable.
 

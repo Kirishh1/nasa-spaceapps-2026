@@ -9,7 +9,11 @@ from dotenv import load_dotenv
 REPO_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(REPO_ROOT / ".env")
 
-DATA_DIR = Path(os.environ.get("SARPULSE_DATA_DIR", REPO_ROOT / "data")).resolve()
+# A deployment can ship its data inside the bundle (data_bundle/, built by scripts/upload_to_blob.py --stage);
+# when present it is used read-only and takes precedence over remote storage.
+BUNDLE_DIR = REPO_ROOT / "data_bundle"
+BUNDLED = bool(os.environ.get("VERCEL")) and "SARPULSE_DATA_DIR" not in os.environ and (BUNDLE_DIR / "reference" / "study_areas.json").exists()
+DATA_DIR = Path(os.environ.get("SARPULSE_DATA_DIR", BUNDLE_DIR if BUNDLED else REPO_ROOT / "data")).resolve()
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 REFERENCE_DIR = DATA_DIR / "reference"

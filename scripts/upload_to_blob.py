@@ -28,6 +28,7 @@ def main() -> None:
     ap.add_argument("--areas", nargs="*", default=None, help="study areas (default: all in the registry)")
     ap.add_argument("--all", action="store_true", help="re-upload files that are already in the store")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--stage", help="copy the same files into this directory (e.g. data_bundle) instead of uploading")
     a = ap.parse_args()
     areas = a.areas or [x["id"] for x in json.loads((config.DATA_DIR / "reference/study_areas.json").read_text())]
     if a.analyses is None:
@@ -82,6 +83,23 @@ def main() -> None:
     extra_json += [f"reference/diagnostics_{aid}.json" for aid in a.analyses]
 
     files = [(rel, p) for rel, p in dict.fromkeys(files) if p.exists()]
+    if a.stage:
+        import shutil
+
+        root = Path(a.stage).resolve()
+        if root.exists():
+            shutil.rmtree(root)
+        for rel, p in files:
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(p, root / rel)
+        for rel in extra_json + ["reference/study_areas.json"]:
+            if (config.DATA_DIR / rel).exists():
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(config.DATA_DIR / rel, root / rel)
+        (root / "reference/observations.json").write_text(json.dumps(obs, indent=2))
+        total = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
+        print(f"staged {len(files)} files, {total / 1e6:.1f} MB -> {root}")
+        return
     if not a.all and not a.dry_run:  # skip files already in the store (same path and size)
         storage.MODE = "blob"
         start = len(storage.PREFIX) + 1

@@ -14,3 +14,6 @@ data/.blobcache/
 .vercel
 .env*
 !.env.example
+
+# deployment data bundle (built by scripts/upload_to_blob.py --stage)
+data_bundle/
