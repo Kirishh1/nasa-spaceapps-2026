@@ -308,3 +308,13 @@ Opens with the headline and a reading sentence that names each class in its own 
 - **Don't** add stat cards or tiles; results are rows and sentences on the sheet.
 - **Don't** signal state by colour alone.
 - **Don't** round corners past 3px on controls or 4px on map chrome.
+
+
+## Landing page (`/`)
+
+The product page uses the same world in a Persuade register; the tool itself lives at `/explore`.
+- **Structure:** sticky nav (wordmark, anchors, marker "Open the app") → centered hero (Archivo 600, wdth 112, up to 68px, tracking −0.03em) with one marker action and one outline action → the backlit product screenshot → a "built on open data" text strip (names only, no logos) → a result ledger → alternating feature rows (text + cropped real screenshot) → "How it works" on `housing-1` → study areas (table on desktop, stacked list on phones) → limits → closing action → footer.
+- **Screenshots are transparencies:** every product image gets the backlight treatment (`.landing-shot`); it is the only glow on the page. The hero image "powers on" once (brightness and blur to clear, 1.1s expo-out), skipped under reduced motion.
+- **Result ledger, not stat tiles:** a hairline-ruled `dl` with the label left, the tabular-mono value right and its range or source beneath.
+- **Data inks stay labeled:** the one coloured number in a heading (308 km², increase orange) matches the "water receded" ink on the map and is named in the same sentence.
+- **No invented claims:** no pricing, customers, testimonials or logos; every number is from `docs/evidence.md`.

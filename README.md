@@ -67,7 +67,7 @@ cp .env.example .env        # then set EARTHDATA_TOKEN=...  (username/password n
 
 # 5. Run (the Next.js dev server forwards /api/* to uvicorn on :8000)
 .venv/bin/uvicorn backend.api.main:app --port 8000      # API + docs at :8000/docs
-cd frontend && npm install && npm run dev                # UI at http://localhost:3000
+cd frontend && npm install && npm run dev                # landing at http://localhost:3000, tool at /explore
 ```
 
 `scripts/fetch_demo.py --catalog-only` lists the real acquisitions from NASA CMR without downloading anything.
@@ -78,7 +78,7 @@ independent optical reference; chosen from dates and reference availability only
 stores the analysis as `<id>_featured`. `scripts/validation_diagnostics.py --analysis <id>` writes the diagnostics.
 
 ## Reproducing the analysis
-1. Open http://localhost:3000. The featured pair, 18 Jun → 16 Oct, is preselected, and its stored result opens.
+1. Open http://localhost:3000 for the landing page, or go straight to the tool at http://localhost:3000/explore (add `?area=okavango`, `tonle_sap` or `atchafalaya` to open another study area). The featured pair, 18 Jun → 16 Oct, is preselected, and its stored result opens.
 2. Press **Take the 1-minute tour**. It steps through the problem, the data, the discovery, the validation and the wavelength comparison, switching the map view as it goes.
 3. Explore on your own using the map views: **Water change**, **Backscatter change**, **ΔB**, **L vs C band** and **Before / after**. Click any pixel to read its values.
 4. Press **Run analysis** to recompute live. It takes about 15–20 s, and progress is shown.
