@@ -33,6 +33,174 @@
     "featured_pair": [
       "2026-06-18",
       "2026-10-16"
+    ],
+    "category": "Monsoon floodplain",
+    "country_iso3": "BGD",
+    "story": {
+      "problem": "Every monsoon the haor wetlands of north-east Bangladesh flood, and they drain over the following months. Clouds hide them from optical satellites for much of that time; radar sees through cloud.",
+      "impact": "Haor farmers prepare boro rice seedbeds as water recedes in November\u2013December, so drained cropland shows where planting can start."
+    }
+  },
+  {
+    "id": "assam_majuli",
+    "name": "Majuli, Brahmaputra floodplain, Assam (India)",
+    "category": "Recent flood event",
+    "country_iso3": "IND",
+    "stack_id": "040_A_015",
+    "bbox": [
+      93.9,
+      26.8,
+      94.4,
+      27.15
+    ],
+    "description": "The Brahmaputra around Majuli, one of the world's largest river islands. The Brahmaputra flooded in July 2026; reports put about 700,000 people displaced across Assam.",
+    "research_question": "How much land did the Brahmaputra flood around Majuli during the 2026 monsoon, how well does NISAR map it against independent NASA OPERA water maps, and where does L-band see change that C-band does not?",
+    "story": {
+      "problem": "In July 2026 the Brahmaputra overflowed across Assam; reports put about 700,000 people displaced. Monsoon cloud hides the floodplain from optical satellites; radar sees through it.",
+      "impact": "Flooded cropland and settlements along the Brahmaputra show where relief and crop-loss assessment were needed."
+    },
+    "frequency": "A",
+    "terms": [
+      "HHHH"
+    ],
+    "multilook": 2,
+    "collections": [
+      "NISAR_L2_GCOV_PROVISIONAL_V1"
+    ]
+  },
+  {
+    "id": "sindh_indus",
+    "name": "Indus floodplain, Sindh (Pakistan)",
+    "category": "Recent flood event",
+    "country_iso3": "PAK",
+    "stack_id": "041_A_015",
+    "bbox": [
+      68.0,
+      26.6,
+      68.5,
+      27.0
+    ],
+    "description": "The Indus river and its floodplain near the Sindh barrages. Pakistan's 2026 monsoon floods killed over 100 people by late July, with authorities forecasting above-normal rainfall into August and September.",
+    "research_question": "How did open water on the Indus floodplain change through the 2026 monsoon, and how well does NISAR map it against independent NASA OPERA water maps?",
+    "story": {
+      "problem": "Pakistan's 2026 monsoon brought deadly floods; the Indus floodplain in Sindh swells with river water each season. Radar maps it regardless of cloud or dust.",
+      "impact": "Flooded and drained cropland on the Indus floodplain matters for kharif harvest and rabi wheat sowing."
+    },
+    "frequency": "A",
+    "terms": [
+      "HHHH"
+    ],
+    "multilook": 2,
+    "collections": [
+      "NISAR_L2_GCOV_PROVISIONAL_V1"
+    ]
+  },
+  {
+    "id": "atchafalaya",
+    "name": "Atchafalaya Basin swamp, Louisiana (USA)",
+    "category": "Forested swamp",
+    "country_iso3": "USA",
+    "stack_id": "084_D_073",
+    "bbox": [
+      -91.75,
+      29.95,
+      -91.3,
+      30.35
+    ],
+    "description": "The largest river swamp in the United States: bald-cypress and tupelo forest that floods seasonally from the Atchafalaya River.",
+    "research_question": "Where does water change under the swamp forest canopy of the Atchafalaya, and does NISAR's L-band see flooding that shorter-wavelength radar misses?",
+    "story": {
+      "problem": "Under a forest canopy, flood water is invisible to optical satellites and hard for short-wavelength radar. L-band radar can reach the water beneath the trees.",
+      "impact": "Swamp water levels drive fisheries, crawfish harvests and the health of the largest river swamp in the US."
+    },
+    "frequency": "A",
+    "terms": [
+      "HHHH"
+    ],
+    "multilook": 2,
+    "collections": [
+      "NISAR_L2_GCOV_PROVISIONAL_V1"
+    ]
+  },
+  {
+    "id": "amazon_mamiraua",
+    "name": "Mamirau\u00e1 v\u00e1rzea, Amazon (Brazil)",
+    "category": "Forested swamp / drying",
+    "country_iso3": "BRA",
+    "stack_id": "161_A_176",
+    "bbox": [
+      -65.0,
+      -2.6,
+      -64.5,
+      -2.2
+    ],
+    "description": "Seasonally flooded v\u00e1rzea forest at the Japur\u00e1\u2013Solim\u00f5es confluence (Mamirau\u00e1 reserve). The Amazon flood pulse peaks around mid-year and falls through the dry season; 2026 is a strong El Ni\u00f1o year, which is typically associated with Amazon drought.",
+    "research_question": "How much flooded forest and lake drained in the Mamirau\u00e1 v\u00e1rzea between the 2026 high-water and low-water seasons, and how well does NISAR map it?",
+    "story": {
+      "problem": "The Amazon's v\u00e1rzea forests flood for months each year and then drain. Cloud and canopy hide the water from optical satellites; L-band radar sees both.",
+      "impact": "River and lake levels in the v\u00e1rzea control fisheries, river transport and access for riverside communities, especially in El Ni\u00f1o drought years."
+    },
+    "frequency": "A",
+    "terms": [
+      "HHHH"
+    ],
+    "multilook": 2,
+    "collections": [
+      "NISAR_L2_GCOV_PROVISIONAL_V1"
+    ]
+  },
+  {
+    "id": "tonle_sap",
+    "name": "Tonl\u00e9 Sap floodplain (Cambodia)",
+    "category": "Monsoon floodplain",
+    "country_iso3": "KHM",
+    "stack_id": "083_A_008",
+    "bbox": [
+      104.0,
+      12.6,
+      104.5,
+      13.0
+    ],
+    "description": "The north-western shore of the Tonl\u00e9 Sap, South-east Asia's largest lake, which swells several-fold each monsoon when the Mekong reverses flow into it.",
+    "research_question": "How far did the Tonl\u00e9 Sap flood pulse spread across its floodplain during the 2026 monsoon, and how well does NISAR map it against independent NASA OPERA water maps?",
+    "story": {
+      "problem": "Each monsoon the Mekong pushes water back up into the Tonl\u00e9 Sap, which swells across its floodplain forests and fields. Monsoon cloud hides it; radar sees it.",
+      "impact": "The flood pulse sustains one of the world's largest inland fisheries and decides where recession rice can be planted."
+    },
+    "frequency": "A",
+    "terms": [
+      "HHHH"
+    ],
+    "multilook": 2,
+    "collections": [
+      "NISAR_L2_GCOV_PROVISIONAL_V1"
+    ]
+  },
+  {
+    "id": "okavango",
+    "name": "Okavango Delta (Botswana)",
+    "category": "Drying wetland",
+    "country_iso3": "BWA",
+    "stack_id": "172_A_168",
+    "bbox": [
+      22.5,
+      -19.6,
+      23.0,
+      -19.2
+    ],
+    "description": "Seasonal swamps and floodplains of the central Okavango Delta, where the annual flood arrives mid-year and the delta then dries towards the end of the dry season.",
+    "research_question": "How much of the central Okavango Delta dried out between mid-year flooding and the late dry season of 2026, and how well does NISAR map it under clear skies where optical validation is strongest?",
+    "story": {
+      "problem": "The Okavango Delta floods each winter from distant rains and then dries; its seasonal swamps are a lifeline for wildlife and people. Clear skies here allow the strongest optical check of the radar.",
+      "impact": "Shrinking seasonal swamps concentrate wildlife and affect water access for communities and tourism."
+    },
+    "frequency": "A",
+    "terms": [
+      "HHHH"
+    ],
+    "multilook": 2,
+    "collections": [
+      "NISAR_L2_GCOV_PROVISIONAL_V1"
     ]
   }
 ]

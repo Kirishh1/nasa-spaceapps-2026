@@ -107,3 +107,16 @@ def get_layers(aid: str):
             "colormap": spec.get("colormap"),
         })
     return {"id": aid, "layers": out, "study_area": r["study_area"]}
+
+
+@router.get("/analysis/{aid}/diagnostics")
+def diagnostics(aid: str) -> dict:
+    """Validation diagnostics (scripts/validation_diagnostics.py) for a stored analysis, or status unavailable."""
+    import json as _json
+
+    from backend import storage as _storage
+
+    rel = f"reference/diagnostics_{aid}.json"
+    if not _storage.exists(rel):
+        return {"status": "unavailable", "reason": "No diagnostics have been computed for this analysis."}
+    return {"status": "available", **_json.loads(_storage.read_text(rel))}

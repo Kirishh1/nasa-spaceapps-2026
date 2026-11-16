@@ -29,7 +29,15 @@ These are independent satellite products with their own errors, **not ground tru
 - NISAR maps more water than DSWx-S1. Optical, a third sensor, sides with NISAR.
 - That is consistent with C-band underestimating shallow, vegetated or wind-roughened water. It is not proof.
 
-## Software tests (`pytest backend/tests`, 31 tests)
+## Software tests (`pytest backend/tests`, 41 tests)
+
+**36 tests use synthetic rasters** (never shown in the app); **5 tests use the real stored Sylhet analysis**
+(`backend/tests/test_real_data.py`, skipped automatically when `data/` is absent). The real-data tests recompute the
+headline areas from the stored rasters, check both frames share track and product version, check the land-cover table's
+counts add up and its intervals bracket the estimate, and check that single-date water-map scores are never mixed up with
+change scores.
+
+Synthetic-raster tests cover:
 - dB conversion, the sign of ΔB, classification and nodata handling
 - speckle filters
 - inundation rules
@@ -45,8 +53,7 @@ These are independent satellite products with their own errors, **not ground tru
 - an end-to-end validation run against a synthetic DSWx-style reference
 - blob storage against a fake SDK, including the listing used to check files exist
 - int16 dB layer round-trip (0.01 dB precision)
-
-All test rasters are synthetic and are never shown in the app.
+- the diagnostics: stable-vs-change split of agreement, kappa (0 for independent maps, 1 for identical), block-bootstrap interval, edge-buffer exclusion
 
 ## What would strengthen it
 - Field observations or Bangladesh FFWC water-level records for the same dates.
@@ -78,7 +85,7 @@ Median measurement uncertainty is 3–5 cm.
   - The correlation of water-fraction change in 100 m cells is r −0.08 to 0.18.
 - **Reference ceiling.** The C-band reference agrees with itself across orbits (same dates) only at F1 0.37–0.60. So it cannot validate the change pattern.
 - **Error-propagation estimate.** Adding independent errors at NISAR's measured per-date rates (vs optical: false-positive rate 0.25, false-negative rate 0.03) gives an expected change F1 of about 0.68. NISAR's change pattern therefore genuinely differs from C-band's, beyond the reference's noise.
-- **Optical pair.** No cloud-free optical pair brackets the monsoon. The one optical pair (17 Oct → 27 Oct) spans only 12 days of very small change, so it cannot discriminate.
+- **Optical pair.** No cloud-free optical pair brackets the monsoon (June is cloud-covered). A later optical pair, 15 Sep → 17 Oct, is used for `sylhet_recession` (below).
 
 **Conclusion:**
 - **Water extent on each date** is validated (optical F1 0.85–0.90).
@@ -104,3 +111,72 @@ Median measurement uncertainty is 3–5 cm.
 - **No noise-based tuning.** Requiring a margin of 0.5–2 dB around the threshold before counting a change did not raise precision (≈ 0.35), so the method was left unchanged.
 - **Interpretation:** NISAR identifies the right neighbourhoods, with fuzzier edges.
 - **ICESat-2 ATL13 was checked as a second altimeter.** Only 28 Jul and 26 Aug had in-basin water returns, on different ground tracks, so no before/after comparison was possible.
+
+
+## Diagnostics (final round): what the weak change score means
+
+Computed by `scripts/validation_diagnostics.py` from the stored layers and reference files; served at
+`GET /api/analysis/sylhet_monsoon/diagnostics` and shown in the app under *Validation & confidence → diagnostics*.
+Nothing here changes a threshold or the analysis.
+
+**Single-date water maps and change maps are scored separately.** The optical F1 values (0.85–0.98) describe the
+water map on one date. Change agreement ("water receded") is a different, lower number and is never presented as
+the accuracy of the change map.
+
+### 1. The C-band change reference is weak itself
+| Sentinel-1 date (orbit) | Optical date | S1 open water | Optical open water | F1 |
+|---|---|---|---|---|
+| 2026-09-13 (150) | 2026-09-15 | 47% | 71% | 0.79 |
+| 2026-09-25 (150) | 2026-09-27 | 28% | 75% | 0.54 |
+| 2026-10-05 (114) | 2026-10-04 | 53% | 73% | 0.84 |
+| 2026-10-02 (77) | 2026-10-04 | 44% | 69% | 0.77 |
+| 2026-10-17 (114) | 2026-10-17 | 40% | 59% | 0.81 |
+| 2026-10-19 (150) | 2026-10-17 | 22% | 56% | 0.56 |
+
+- DSWx-S1 finds 15–47 percentage points less water than optical on the same days, and how much less depends on the orbit.
+- In June (no optical available) the four orbits, within 7 days, map 687–1356 km² of open water; NISAR maps 1684–1764 km² over the same pixels.
+- Its change maps agree with each other across orbits only at F1 0.37–0.60.
+
+### 2. Where the disagreement sits
+| Orbit | Dates | Offset (d) | F1 "receded" | NISAR receded | S1 receded | F1 excl. 60 m of edges |
+|---|---|---|---|---|---|---|
+| 77 | 2026-06-21 → 2026-10-14 | 5 | 0.25 | 280 km² | 458 km² | 0.26 |
+| 41 | 2026-06-19 → 2026-10-12 | 5 | 0.21 | 306 km² | 646 km² | 0.09 |
+| 150 | 2026-06-14 → 2026-10-19 | 7 | 0.15 | 302 km² | 440 km² | 0.04 |
+| 114 | 2026-06-12 → 2026-10-17 | 7 | 0.09 | 266 km² | 358 km² | 0.01 |
+
+- **Not edge jitter:** excluding pixels near any water/land edge does not raise F1 (it falls for three orbits), so the disagreement lies inside water bodies.
+- **Not mainly timing:** every pair is within 5–7 days; the two 5-day pairs (orbits 77, 41) score 0.25 and 0.21, the 7-day pairs 0.15 and 0.09, but orbit-to-orbit differences in the reference itself are larger than this.
+- **Inundated vegetation class:** counting DSWx-S1 class 3 as water changes F1 by < 0.01, so the class definition is not the cause.
+- **Error budget:** each date's water map differs from its reference over 753 km² (DSWX_S1 2026-06-19), 559 km² (DSWX_S1 2026-10-17), 279 km² (DSWX_HLS 2026-10-17), comparable to or larger than the 308 km² change. A change map is the difference of two maps, so its pixel pattern is much less certain than either map.
+- **Conclusion:** the low score reflects (a) a reference that underestimates water and varies strongly by orbit, and (b) genuinely different behaviour of C-band over shallow vegetated water (section 3). It is not evidence that NISAR's per-date maps are wrong, but the exact pixel pattern of drainage remains unverified.
+
+### 3. L-band vs C-band by land cover, examined
+- **What is compared:** NISAR HH and Sentinel-1 VV (OPERA RTC-S1, orbit 41, 19 Jun → 12 Oct) backscatter-change classes (±3 dB), each from its own sensor, aggregated to 100 m cells (a change class wins a cell if it covers ≥ 30% of valid pixels). Cells need ≥ 50% valid pixels in both maps; nodata cells are excluded.
+- **Land cover:** ESA WorldCover 2021 v200 (10 m) on the 20 m grid, dominant class per 100 m cell.
+- **Agreement formula:** (both stable + both decrease + both increase) / compared cells. Kappa corrects for chance; the 95% interval is a bootstrap over 5 km blocks (≈ 99 blocks), which respects spatial autocorrelation.
+
+| Land cover | Cells | Agreement (95% CI) | of which both stable | both changed alike | C-band only | κ |
+|---|---|---|---|---|---|---|
+| Tree cover | 20,480 | 90.8% (89.6–91.8) | 88.9% | 1.9% | 2.5% | 0.269 |
+| Cropland | 118,942 | 47.2% (43.9–50.6) | 18.9% | 28.3% | 26.9% | 0.195 |
+| Permanent water | 15,621 | 31.5% (26.9–36.8) | 20.5% | 11.0% | 56.6% | 0.052 |
+| Herbaceous wetland | 66,628 | 32.5% (27.4–38.3) | 16.2% | 16.3% | 62.1% | 0.046 |
+
+- **Tree cover's 91% is mostly agreement that nothing changed** (88.9% both stable, 1.9% both changed; κ 0.269). Across cell sizes (100/200 m) and aggregation rules (20/30/50%) it ranges 75.5–98.6%, so it is *not* a robust headline.
+- **The herbaceous-wetland result is robust:** agreement 31.4–34.1% across those variants and 32.5–34.0% for ΔB thresholds of 2/3/4 dB, with C-band-only change on 60.6–64.0% of cells and κ ≈ 0.03–0.06 (near chance).
+- **Across study areas:** the same pattern appears in the drying Okavango delta (herbaceous wetland agreement 34%, κ 0.05), but not in the flooding Tonlé Sap (96%, κ 0.45; tree cover κ 0.72). L- and C-band disagree most where shallow vegetated water drains, and agree where large areas flood.
+- **Interpretation (not proven):** C-band (5.6 cm) is more sensitive than L-band (24 cm) to wind ripples and emergent vegetation on shallow water. The bands also differ in polarization (HH vs VV), incidence geometry and dates (up to 4 days), any of which can contribute.
+
+### 4. Impact numbers: sensitivity
+| Water threshold shift | Receded | Newly flooded | Cropland emerged |
+|---|---|---|---|
+| -1.0 dB | 327 km² | 11.5 km² | 294 km² |
+| -0.5 dB | 317 km² | 11.0 km² | 288 km² |
+| +0.0 dB | 308 km² | 10.9 km² | 282 km² |
+| +0.5 dB | 299 km² | 11.0 km² | 275 km² |
+| +1.0 dB | 289 km² | 11.7 km² | 268 km² |
+
+- Drained area by land cover: Tree cover 3.7 km², Grassland 5.3 km², Cropland 281.5 km², Permanent water 8.0 km², Herbaceous wetland 8.6 km². WorldCover 2021 is a single-date map; seasonally flooded rice land can be labelled cropland or herbaceous wetland.
+- Population (WorldPop R2025A, 100 m, constrained, resampled to 20 m preserving totals): 1,264,651 people in the area; within 200 m / 500 m / 1 km of drained land: 1,106,236 / 1,236,836 / 1,264,010. Because almost everyone lives near water in this basin, proximity does not single out an affected group and is presented as context, not harm. (WorldPop places 154,415 people on pixels that were water in June; this is an artefact of 100 m population cells straddling water edges, so it is not reported as a result.)
+- Volume (≈ 2 km³) is order-of-magnitude only: mean area × median SWOT level change.

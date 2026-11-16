@@ -67,11 +67,21 @@ def _epsg(grp: h5py.Group) -> int | None:
     return int(code) if code is not None else None
 
 
-def inspect_gcov(path: str | Path) -> dict[str, Any]:
+def open_source(source):
+    """h5py-openable object for a local path or an https URL (streamed with Earthdata auth, only needed bytes)."""
+    if isinstance(source, str) and source.startswith("https://"):
+        import earthaccess
+
+        fs = earthaccess.get_fsspec_https_session()
+        return fs.open(source, block_size=8 * 1024 * 1024, cache_type="blockcache")
+    return source
+
+
+def inspect_gcov(path) -> dict[str, Any]:
     """Return metadata extracted from the GCOV file, with a list of any expected-but-missing items."""
-    path = Path(path)
+    name = str(path).rsplit("/", 1)[-1]
     missing: list[str] = []
-    with h5py.File(path, "r") as f:
+    with h5py.File(open_source(path), "r") as f:
         ident = {}
         for key in (
             "productType", "productVersion", "productSpecificationVersion", "missionId", "radarBand",
@@ -128,7 +138,7 @@ def inspect_gcov(path: str | Path) -> dict[str, Any]:
                 if isinstance(v, h5py.Dataset) and v.size <= 16:
                     params[k] = _read(v)
     return {
-        "file": path.name,
+        "file": name,
         "identification": ident,
         "frequencies": freqs,
         "processing_parameters": params,
@@ -170,7 +180,7 @@ def export_term_cog(
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with h5py.File(h5_path, "r") as f:
+    with h5py.File(open_source(h5_path), "r") as f:
         g = f[f"{GRIDS}/frequency{frequency}"]
         if term not in g:
             raise KeyError(f"{term} not present in frequency{frequency}; available: {[k for k in g if len(k) == 4 and k.isupper()]}")

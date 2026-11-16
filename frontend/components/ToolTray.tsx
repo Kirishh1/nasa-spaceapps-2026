@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import type { AnalysisConfig, Issue, Observation, Polygon, StudyArea } from "@/services/api";
 
+import { AreaOverview } from "./AreaOverview";
+
 export type Sensor = "NISAR" | "RCM" | "COMPARE";
 
 interface Props {
@@ -179,6 +181,7 @@ export function ToolTray(p: Props) {
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
         </select>
+        <AreaOverview current={p.areaId} onPick={p.onArea} />
         <details className="group mt-2.5" open={p.drawing || !!p.drawn || undefined}>
           <summary className="cursor-pointer list-none text-[12px] text-ink-3 hover:text-ink [&::-webkit-details-marker]:hidden">
             <span className="underline underline-offset-2">Find a place or draw a sub-area</span>

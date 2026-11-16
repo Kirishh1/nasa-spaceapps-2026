@@ -22,14 +22,32 @@ from backend import config, storage  # noqa: E402
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--analyses", nargs="*", default=["sylhet_monsoon", "sylhet_recession", "sylhet_optical_check", "sylhet_late", "sylhet_demo"], help="stored analysis ids to upload")
+    ap.add_argument("--analyses", nargs="*", default=None,
+                    help="stored analysis ids (default: the Sylhet analyses plus <area>_featured for every other area)")
     ap.add_argument("--terms", nargs="*", default=["A_HHHH"], help="processed frame layers to upload (HV is not used by default analyses)")
-    ap.add_argument("--area", default="sylhet_haor")
+    ap.add_argument("--areas", nargs="*", default=None, help="study areas (default: all in the registry)")
+    ap.add_argument("--all", action="store_true", help="re-upload files that are already in the store")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
+    areas = a.areas or [x["id"] for x in json.loads((config.DATA_DIR / "reference/study_areas.json").read_text())]
+    if a.analyses is None:
+        a.analyses = ["sylhet_monsoon", "sylhet_recession", "sylhet_optical_check", "sylhet_late", "sylhet_demo"] + \
+            [f"{x}_featured" for x in areas if x != "sylhet_haor" and config.analysis_dir(f"{x}_featured").joinpath("result.json").exists()]
 
     files: list[tuple[str, Path]] = []
     obs = json.loads((config.DATA_DIR / "reference/observations.json").read_text())
+    # Frames: every processed frame for the main study area; for other areas only the frames the uploaded analyses use
+    # (Blob storage is limited). Registry entries for frames that are not uploaded are dropped from the uploaded copy.
+    used_frames = set()
+    for aid in a.analyses:
+        rp = config.analysis_dir(aid) / "result.json"
+        if rp.exists():
+            rr = json.loads(rp.read_text())
+            used_frames |= {rr["earlier"]["id"], rr["later"]["id"]}
+    for o in obs:
+        for area_id in list((o.get("processed") or {})):
+            if area_id != "sylhet_haor" and o["id"] not in used_frames:
+                del o["processed"][area_id]
     for o in obs:  # make every layer path relative so it resolves inside the store
         for layers in (o.get("processed") or {}).values():
             for key, rec in layers.items():
@@ -53,16 +71,22 @@ def main() -> None:
         files += [(f"processed/analyses/{aid}/{f.name}", f) for f in sorted(d.iterdir(), key=lambda f: f.name == "result.json")]
 
     # OPERA references: every water map (small) and only the C-band passes the uploaded analyses use
-    refs_path = config.REFERENCE_DIR / f"references_{a.area}.json"
-    refs = json.loads(refs_path.read_text()) if refs_path.exists() else []
-    for r in refs:
-        if r["kind"] in ("water", "water_change_candidate", "jrc", "worldcover", "hand", "worldpop", "hls_rgb") or (r["kind"] == "cband" and (r["date"], r["track"]) in used_cband):
-            files.append((r["path"], config.DATA_DIR / r["path"]))
-    extra_json = [f"reference/references_{a.area}.json", f"reference/water_timeline_{a.area}.json",
-                  f"reference/rainfall_{a.area}.json", f"reference/swot_{a.area}.json",
-                  f"reference/nisar_season_{a.area}.json", f"reference/soil_moisture_{a.area}.json"]
+    extra_json = []
+    for area in areas:
+        refs_path = config.REFERENCE_DIR / f"references_{area}.json"
+        refs = json.loads(refs_path.read_text()) if refs_path.exists() else []
+        for r in refs:
+            if r["kind"] in ("water", "water_change_candidate", "jrc", "worldcover", "worldpop", "hls_rgb") or (r["kind"] == "cband" and (r["date"], r["track"]) in used_cband):  # HAND is not used at runtime
+                files.append((r["path"], config.DATA_DIR / r["path"]))
+        extra_json += [f"reference/{n}_{area}.json" for n in ("references", "water_timeline", "rainfall", "swot", "nisar_season", "soil_moisture")]
+    extra_json += [f"reference/diagnostics_{aid}.json" for aid in a.analyses]
 
-    files = list(dict.fromkeys(files))
+    files = [(rel, p) for rel, p in dict.fromkeys(files) if p.exists()]
+    if not a.all and not a.dry_run:  # skip files already in the store (same path and size)
+        storage.MODE = "blob"
+        start = len(storage.PREFIX) + 1
+        have = {b.pathname[start:]: b.size for b in storage._blob().query_blobs(prefix=f"{storage.PREFIX}/")}
+        files = [(rel, p) for rel, p in files if have.get(rel) != p.stat().st_size or rel.startswith("processed/analyses/")]
     total = sum(p.stat().st_size for _, p in files)
     print(f"{len(files)} files, {total / 1e6:.1f} MB -> Blob prefix '{storage.PREFIX}/' (access={storage.ACCESS})")
     if a.dry_run:

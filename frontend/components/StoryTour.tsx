@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import type { AnalysisResult } from "@/services/api";
 
-export type TourView = "water" | "change" | "delta" | "lc" | "photo" | "swipe";
+export type TourView = "water" | "change" | "delta" | "lc" | "impact" | "photo" | "swipe";
 
 export interface TourStep {
   title: string;
@@ -30,7 +30,7 @@ export function buildTour(r: AnalysisResult): TourStep[] {
   const steps: TourStep[] = [
     {
       title: "The problem",
-      body: `Every monsoon the haor wetlands of north-east Bangladesh flood, and they drain over the following months. Clouds hide them from optical satellites for much of that time. Radar sees through cloud, so it can track the water continuously.`,
+      body: r.study_area.story?.problem ?? `${r.study_area.name}: radar sees through cloud and vegetation, so it can track surface water through the season when optical satellites cannot.`,
       view: "water",
     },
     {
@@ -42,7 +42,7 @@ export function buildTour(r: AnalysisResult): TourStep[] {
   if (w) {
     steps.push({
       title: "The discovery",
-      body: `Open water shrank from ${km(w.earlier_km2)} km² to ${km(w.later_km2)} km². Orange marks the ${km(w.lost_km2)} km² of wetland that drained; only ${km(w.gained_km2)} km² newly flooded. The water threshold is chosen automatically for each image, not tuned by hand.`,
+      body: `Open water ${w.later_km2 < w.earlier_km2 ? "shrank" : "grew"} from ${km(w.earlier_km2)} km² to ${km(w.later_km2)} km²: ${km(w.lost_km2)} km² receded (orange) and ${km(w.gained_km2)} km² newly flooded (cyan). The water threshold is chosen automatically for each image, not tuned by hand.`,
       view: "water",
       fold: "fold-water",
     });
@@ -74,10 +74,10 @@ export function buildTour(r: AnalysisResult): TourStep[] {
   if (im && (im.cropland_emerged_km2 || im.people_within_1km_of_receded_water)) {
     steps.push({
       title: "Why it matters",
-      body: `${im.cropland_emerged_km2 ? `${Math.round(im.cropland_emerged_km2)} km² of cropland came out of the water: haor farmers prepare boro rice seedbeds as the water recedes in November–December, so this map shows where planting can start. ` : ""}` +
-        `${im.people_within_1km_of_receded_water ? `About ${(im.people_within_1km_of_receded_water / 1e6).toFixed(1)} million people live within 1 km of land that drained (WorldPop 2025). ` : ""}` +
+      body: `${im.cropland_emerged_km2 ? `${Math.round(im.cropland_emerged_km2)} km² of cropland came out of the water${im.cropland_flooded_km2 ? ` and ${Math.round(im.cropland_flooded_km2)} km² went under` : ""}. ${r.study_area.story?.impact ?? ""} ` : ""}` +
+        `${im.people_in_area ? `About ${im.people_in_area >= 1e5 ? `${(im.people_in_area / 1e6).toFixed(2)} million` : im.people_in_area.toLocaleString()} people live in the area (WorldPop 2025); living near changing water is exposure context, not harm. ` : ""}` +
         `${im.volume_change_km3_approx ? `Roughly ${Math.abs(im.volume_change_km3_approx).toFixed(1)} km³ of water left the basin (order of magnitude, from NISAR area × SWOT level drop).` : ""}`,
-      view: "photo",
+      view: "impact",
       fold: "fold-impact",
     });
   }

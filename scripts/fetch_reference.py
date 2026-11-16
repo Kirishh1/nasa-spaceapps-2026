@@ -38,6 +38,8 @@ def _days(a: str, b: str) -> int:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--area", default="sylhet_haor")
+    ap.add_argument("--no-rtc", action="store_true", help="skip the C-band (RTC-S1) step")
+    ap.add_argument("--rtc-dates", nargs="*", default=None, help="only fetch C-band near these NISAR dates")
     a = ap.parse_args()
     area = registry.get_study_area(a.area)
     obs = [o for o in registry.observations() if registry.processed_layer(o, a.area, "A", "HHHH")]
@@ -103,8 +105,9 @@ def main() -> None:
                              "offset_days": _days(x, d), "track": track, "observed_fraction": round(cover, 4),
                              "granules": [g["id"] for g in by_date[x]], "path": rel})
 
-    # --- C-band backscatter (RTC-S1 VV), every track near every NISAR date
-    grans = opera.search("RTC_S1", area["bbox"], lo, hi)
+    # --- C-band backscatter (RTC-S1 VV), every track near the selected NISAR dates
+    rtc_dates = [] if a.no_rtc else (a.rtc_dates or dates)
+    grans = opera.search("RTC_S1", area["bbox"], lo, hi) if rtc_dates else []
     groups: dict[tuple, list[dict]] = {}
     for g in grans:
         groups.setdefault((g["date"], g["track"]), []).append(g)
@@ -112,7 +115,7 @@ def main() -> None:
     chosen: dict[tuple, list[str]] = {}
     for track in {t for _, t in groups}:
         per_date = {}
-        for d in dates:
+        for d in rtc_dates:
             cands = [x for (x, t) in groups if t == track and _days(x, d) <= MAX_DAYS_RTC]
             if cands:
                 per_date[d] = min(cands, key=lambda x: _days(x, d))

@@ -53,8 +53,9 @@ cp .env.example .env        # then set EARTHDATA_TOKEN=...  (username/password n
 
 #    For the OPERA C-band data, also approve ASF's app (the download error links to it), and
 #    accept the PO.DAAC terms if prompted.
-# 3. Download and process the real NISAR frames (full frames, ~7 GB each; ~30 GB free disk needed)
-.venv/bin/python scripts/fetch_demo.py        # re-running skips files already in data/raw/
+# 3. Process the real NISAR frames. Only the study-area window is read from each ~7 GB HDF5 file over HTTPS
+#    (h5py + Earthdata-authenticated range requests, ~5 frames in parallel); --download fetches full files instead.
+.venv/bin/python scripts/fetch_demo.py --area sylhet_haor --max-granules 20   # re-running skips processed frames
 # 4. Fetch the independent references on the same grid
 .venv/bin/python scripts/fetch_reference.py   # NASA OPERA water maps, Sentinel-1 C-band, land cover (~450 MB)
 .venv/bin/python scripts/opera_timeline.py    # season-long OPERA water fraction for the season chart
@@ -70,6 +71,11 @@ cd frontend && npm install && npm run dev                # UI at http://localhos
 ```
 
 `scripts/fetch_demo.py --catalog-only` lists the real acquisitions from NASA CMR without downloading anything.
+
+**Any other study area, one command.** `scripts/run_area.py --area <id>` (areas in `scripts/demo_areas.json`) runs every
+step above for that area, chooses the featured pair as the season span (earliest and latest NISAR dates that both have an
+independent optical reference; chosen from dates and reference availability only, never from agreement scores), and
+stores the analysis as `<id>_featured`. `scripts/validation_diagnostics.py --analysis <id>` writes the diagnostics.
 
 ## Reproducing the analysis
 1. Open http://localhost:3000. The featured pair, 18 Jun → 16 Oct, is preselected, and its stored result opens.
@@ -112,8 +118,12 @@ On Vercel:
 
 ## Tests
 ```bash
-.venv/bin/python -m pytest backend/tests
+.venv/bin/python -m pytest backend/tests     # 41 tests
 ```
+- **36 tests on synthetic rasters** (unit and API tests; synthetic data is never shown in the app).
+- **5 tests on real NISAR results** (`backend/tests/test_real_data.py`): they recompute the headline areas from the stored
+  Sylhet rasters and check version/track compatibility, the land-cover table's counts and intervals, and that single-date
+  water-map scores are kept separate from change scores. They are skipped when `data/` is absent.
 
 ## Repository
 ```
@@ -129,7 +139,7 @@ data/      raw/ processed/ reference/   (git-ignored; created by the scripts)
 |---|---|
 | Starts locally with documented instructions | ✅ |
 | Frontend ↔ backend communication | ✅ Same-origin `/api`, deployed on Vercel |
-| Real NISAR observations loaded and inspected | ✅ 4 GCOV full frames, with HDF5 metadata recorded |
+| Real NISAR observations loaded and inspected | ✅ 7 GCOV frames over Sylhet (plus every frame of three further study areas), with HDF5 metadata recorded |
 | Compatible metadata enforced | ✅ Same track, direction, polarization and product. A product-version difference is flagged as a warning |
 | Real change-detection result | ✅ Backscatter change plus open-water change |
 | Georeferenced display | ✅ UTM 46N COGs → XYZ tiles |
@@ -160,12 +170,15 @@ data/      raw/ processed/ reference/   (git-ignored; created by the scripts)
 
 **3. Against C-band radar, NISAR finds much more water.**
 - Recall against OPERA DSWx-S1 is ≥ 0.99, but precision is only 0.58–0.59: NISAR marks as water many pixels that the C-band map calls land.
-- On the same pixels on 17 Oct, NISAR maps 68% as open water, C-band 40%, and optical 56%. The optical map sides with L-band.
+- On the same pixels on 17 Oct, NISAR maps 68% as open water, C-band 40%, and optical 56%. Optical is closer to L-band, but NISAR also over-calls water relative to optical (precision 0.83).
+- The C-band reference is itself uneven: on near-same days it finds 15–47 percentage points less water than optical, and in June its four orbits, within a week, map 687–1,356 km² of water (see [validation diagnostics](docs/validation.md#diagnostics-final-round-what-the-weak-change-score-means)).
 
 **4. The two wavelengths disagree where there is water.**
 - Comparing NISAR's change map with an independent Sentinel-1 C-band change map (OPERA RTC-S1, orbit 41, 2026-06-19 → 2026-10-12) on 100 m cells, the bands agree on **46%** of cells.
-- Agreement is 90.8% over tree cover, but only 32.5% over herbaceous wetland and 31.5% over permanent water. There, C-band alone reports change on 62.1% and 56.6% of cells.
-- This is consistent with known physics. C-band (5.6 cm) responds strongly to centimetre-scale wind ripples on water and to emergent vegetation; L-band (24 cm) largely does not. It has not been proven for this scene.
+- **Herbaceous wetland (66,628 cells): agreement 32.5% (95% interval 27–38%, κ 0.05, near chance)**, with C-band alone reporting change on 62.1% of cells. This holds across cell sizes (100/200 m), aggregation rules and ΔB thresholds of 2–4 dB (31–34% agreement, C-only 55–64%). Permanent water is similar (31.5%, C-only 56.6%).
+- Tree cover agrees on 90.8% of cells, but **88.9 points of that are both bands seeing no change** (κ 0.27); it ranges 75–99% with the aggregation rule, so it is not a robust headline.
+- The pattern recurs in the drying Okavango delta (34%, κ 0.05) but not in the flooding Tonlé Sap (96%, κ 0.45): the bands disagree most where shallow vegetated water drains.
+- This is consistent with known physics: C-band (5.6 cm) is more sensitive than L-band (24 cm) to wind ripples and emergent vegetation. The bands also differ in polarization (HH vs VV), geometry and dates (≤ 4 days), so it is a plausible explanation, not a proven one.
 
 **5. An independent instrument confirms the drainage.** NASA/CNES SWOT measures lake water *height* directly.
 - Paired lake by lake between the SWOT passes closest to the NISAR dates, **every lake it observed fell**: median **-1.38 m** across 11 lakes (pass 467, 2026-06-15 → 2026-10-18) and **-1.25 m** across 9 lakes (pass 536). SWOT's measurement uncertainty is 3–5 cm.
@@ -188,10 +201,24 @@ data/      raw/ processed/ reference/   (git-ignored; created by the scripts)
 - At pixel level it agrees only modestly: F1 0.30, direction 54% at 100 m. NISAR finds the right areas, but exact edges differ.
 
 **10. Why it matters.** Between 18 June and 16 October:
-- **281 km² of cropland** (ESA WorldCover) came out of the water. Haor farmers prepare boro rice seedbeds as water recedes in November–December, so the map shows where planting can start.
-- About **1.26 million people** (WorldPop 2025, 100% of the basin) live within 1 km of land that drained.
+- **281 km² of cropland** (ESA WorldCover 2021) came out of the water (268–294 km² for water thresholds ±1 dB; total receded 289–327 km²). Haor farmers prepare boro rice seedbeds as water recedes in November–December, so the map ("What drained" view) shows where planting can start.
+- About **1.26 million people** live in the basin (WorldPop 2025). Nearly all live within 1 km of land that drained (87% within 200 m), so proximity does not single out an affected group; it is context, not a measure of harm.
 - Roughly **2.1 km³** of water left the basin. This is an order of magnitude: mean water area × SWOT level drop.
 - NASA SMAP shows soil moisture falling from 0.45 (June) to 0.23 m³/m³ (October), which is why some land backscatter also changed.
+
+## More study areas (same pipeline, no per-area tuning)
+
+Each was processed with `scripts/run_area.py`; the pair is the season span with optical references at both ends.
+Figures are from the stored `<area>_featured` analyses (`GET /api/summary`).
+
+| Area | Ecosystem | NISAR track | Pair | Open water | Optical F1 (per date) | Calibration | Notes |
+|---|---|---|---|---|---|---|---|
+| Sylhet haor, Bangladesh | Monsoon floodplain | 069 A | 18 Jun → 16 Oct | 1,766 → 1,469 km² | 0.85–0.98 (5 dates) | 0.00 dB | Main case study |
+| Tonlé Sap, Cambodia | Flood-pulse lake | 083 A | 19 Jun → 17 Oct | 1,046 → 1,629 km² | 0.63 (Jun), 0.92 (Oct) | −0.63 dB ⚠ | Flooding; L/C agree in wetland (96%, κ 0.45). Calibration offset exceeds tolerance and is flagged |
+| Okavango delta, Botswana | Drying seasonal swamp | 172 A | 26 Jun → 12 Oct | 644 → 78 km² | 0.50 (Jun), 0.19 (Oct) | −0.12 dB | **Weak case.** Fixed −18 dB fallback (histogram not bimodal); against optical open + partial water F1 0.68 in June. NISAR maps about twice the optical open water; likely causes (not verified) are radar-dark dry sand and shallow vegetated water that optical scores as partial |
+| Atchafalaya, Louisiana (USA) | Forested river swamp | 084 D | 20 Jun → 18 Oct | 192 → 199 km² | 0.55 (Jun), 0.70 (Oct) | −0.46 dB | Little open-water change; flooding under the canopy is not open water and is not measured. No population layer (national file 1.5 GB) |
+
+Configured in `scripts/demo_areas.json` but not processed for lack of time: Majuli (Assam), Indus (Sindh), Mamirauá (Amazon).
 
 **What this does not show.**
 - **No ground truth.** The references are other satellite products, not field observations, and they disagree with each other.

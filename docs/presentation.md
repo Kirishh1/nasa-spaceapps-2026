@@ -7,214 +7,148 @@ title: SAR-Pulse
 
 <!--
 How to use this file
-- Each slide is separated by a line with three dashes (---). It renders directly in Marp, Slidev or reveal.js,
-  and imports into Google Slides / PowerPoint via a Markdown-to-slides converter.
-- Text in HTML comments is speaker notes.
-- Screenshots are in docs/presentation/ (relative paths below).
-- Every number comes from the stored analyses in the live app (sylhet_monsoon, 18 Jun → 16 Oct 2026, unless stated).
-- Live demo: https://nasa-spaceapps-2026.vercel.app (press "Take the 1-minute tour").
+- Seven slides, separated by lines with three dashes (---). Renders in Marp, Slidev or reveal.js; imports into
+  Google Slides / PowerPoint via a Markdown-to-slides converter. HTML comments are speaker notes.
+- Screenshots are in docs/presentation/ (list at the end, with the app view that produces each one).
+- Every number is traceable: the "Source" line on each slide names the stored analysis or file it comes from, all
+  served by the live API (https://nasa-spaceapps-2026.vercel.app/api/...).
+- The comparison radar is Sentinel-1 C-band (via NASA OPERA RTC-S1). RCM was not obtained and is not used.
 -->
 
-# SAR-Pulse
+# 1 · Beyond the Surface
 
-### What changed between two NASA–ISRO NISAR radar passes, and how sure can we be?
+**Every monsoon, the Sylhet haor wetlands of Bangladesh flood, then drain over months. When and where the land drains decides when farmers can plant boro rice, the country's main rice crop.**
 
-A validated, NISAR-first tool for tracking wetland flooding and drainage through cloud.
+- 2,237 km² basin; about **1.26 million people** live in it (WorldPop 2025, modelled).
+- Monsoon cloud hides the haors from optical satellites for most of the season. Radar sees through cloud.
 
-**Case study:** monsoon drainage of the Sylhet haor wetlands, Bangladesh, June–October 2026
+**Research question:** how much of the wetland drained between monsoon high water (18 Jun 2026) and mid-October (16 Oct), how well does NASA–ISRO NISAR map it, and where do L-band and C-band radar see the surface differently?
 
-Live: **nasa-spaceapps-2026.vercel.app**
+![bg right:42% fit](presentation/s1-optical-photo.jpg)
 
-<!-- One sentence: we built a research tool that turns real NISAR radar into a validated water-change map, and we checked it against every independent NASA dataset we could find. -->
-
----
-
-## The problem
-
-- The **haors** of north-east Bangladesh are vast seasonal wetlands. They flood every monsoon and drain over the following months.
-- About **1.26 million people** live in our 2,237 km² study basin (WorldPop 2025).
-- Farmers plant **boro rice**, Bangladesh's main rice crop, as the water recedes in **November–December**. *When* and *where* land drains decides when planting can start.
-- **Clouds hide the haors from optical satellites** for much of the monsoon. Radar sees through cloud, day and night.
-
-**Question:** how much of the wetland drained between monsoon high water (18 Jun) and mid-October (16 Oct)? How well does NISAR map it? And what does L-band radar see that C-band misses?
-
-<!-- Emphasise that this is a real, recurring, consequential problem: timing of drainage = timing of planting for a country's main rice crop. -->
+<!-- Source: study area registry; WorldPop R2025A via /api/analysis/sylhet_monsoon (impact.people_in_area). Show the live app's Optical photo view. -->
 
 ---
 
-## The data: NISAR at the centre
+# 2 · Two Wavelengths, Different Perspectives
 
-- **7 real NISAR L2 GCOV frames** (NASA–ISRO, from NASA's ASF DAAC): same orbit (track 69 ascending, frame 14), 18 Jun → 9 Nov 2026, about 7 GB each.
-- L-band (24 cm wavelength), HH polarization, terrain-corrected backscatter on a 20 m grid.
-- Compatibility checks before any comparison: same track, polarization and product. Incompatible pairs are rejected with a reason.
-- **Calibration check:** buildings and trees that stayed land changed by a median of **0.00 dB** between the two passes, so the frames are radiometrically consistent.
+NISAR **L-band (24 cm)** vs Sentinel-1 **C-band (5.6 cm)**, each change map made from its own sensor, compared on 100 m cells.
 
-![bg right:40% fit](presentation/02-before-after-and-season.jpg)
+| Land cover (ESA WorldCover) | Cells | Agreement (95% CI) | Both stable | C-band only | κ |
+|---|---|---|---|---|---|
+| **Herbaceous wetland** | 66,628 | **32.5%** (27–38) | 16.2% | **62.1%** | 0.05 |
+| Permanent water | 15,621 | 31.5% (27–37) | 20.5% | 56.6% | 0.05 |
+| Tree cover | 20,480 | 90.8% (90–92) | **88.9%** | 2.5% | 0.27 |
 
-<!-- Show the before/after swipe live: dark = smooth water, bright = land and vegetation. -->
+- **Robust:** wetland agreement stays 31–34% across cell sizes, aggregation rules and ±1 dB thresholds.
+- Tree-cover agreement is mostly *both see no change*, so it is not evidence of agreement on change.
+- Same pattern in the drying **Okavango** (34%), not in the flooding **Tonlé Sap** (96%).
+- *Plausible, not proven:* C-band reacts more to wind ripples and emergent plants. Polarization (HH vs VV) and geometry differ too.
 
----
+![bg right:36% fit](presentation/s2-l-vs-c.jpg)
 
-## The method
-
-1. **Speckle filter** (Lee, 5×5), then convert to dB.
-2. **Open water** = HH below a threshold chosen **automatically for each image** (Otsu: −12.2 and −12.0 dB). It's only trusted if the histogram is clearly two-peaked (separability η = 0.80, 0.79).
-3. **Water change:** land ↔ water between the two dates.
-4. **Backscatter change** ΔB = B_later − B_earlier, with ±3 dB classes, and a noise reference.
-5. **Independent checks** against every relevant NASA dataset (next slides).
-
-The threshold is never tuned to the references we validate against.
-
-<!-- The 'not tuned to the reference' point matters for Validity: our F1 scores are honest. -->
+<!-- Source: /api/analysis/sylhet_monsoon → sensor_comparison.by_landcover; robustness: /api/analysis/sylhet_monsoon/diagnostics (C_l_vs_c). -->
 
 ---
 
-## The discovery
+# 3 · From Radar to Environmental Intelligence
 
-### Open water fell from **1,766 km²** to **1,469 km²**
+1. **Discover** NISAR L2 GCOV frames in NASA CMR; check compatibility (same track, frame, polarization, product). Incompatible pairs are refused with a reason; mixed product versions are flagged.
+2. **Read** only the study-area window from each ~7 GB HDF5 file over HTTPS (Earthdata Login).
+3. **Calibrate and filter:** linear γ⁰ → Lee speckle filter → dB; invariant-target check (median ΔB on unchanged land, tolerance 0.5 dB).
+4. **Map water** per image with an automatic Otsu threshold, used only when the histogram is clearly two-peaked (η ≥ 0.7).
+5. **Change:** water lost / gained, ΔB classes (±3 dB).
+6. **Validate** against independent NASA data: OPERA DSWx-HLS (optical), DSWx-S1 and RTC-S1 (C-band), SWOT lake heights; context from GPM rainfall, SMAP soil moisture, HLS imagery, HAND, WorldCover, WorldPop.
+7. **Serve** as map tiles + statistics (FastAPI, rio-tiler, Next.js/MapLibre on Vercel).
 
-- **308 km² of wetland drained**; only 11 km² newly flooded.
-- NISAR's full season: **79% → 75% → 74% → 69% → 66% → 65% → 63%** of the basin is open water (18 Jun → 9 Nov).
-- The monsoon switched off first. NASA GPM rainfall: **364 mm** in June, 303 in July, 308 in August, 141 in September, **24 mm** in October.
+Thresholds are never tuned to the references used for validation.
 
-![bg right:45% fit](presentation/01-water-change.jpg)
+![bg right:34% fit](presentation/s3-app-overview.jpg)
 
-<!-- Orange on the map = water that receded. Point out it follows the haor margins and river corridors. -->
-
----
-
-## Is it right? Validation against independent NASA data
-
-| NISAR pass | NASA OPERA optical water map | F1 |
-|---|---|---|
-| 10 Sep | 15 Sep (Landsat-9) | **0.93** |
-| 22 Sep | 27 Sep (Sentinel-2B) | **0.95** |
-| 4 Oct | 4 Oct (same day) | **0.98** |
-| 16 Oct | 17 Oct (Landsat-9, 100% clear) | **0.90** (IoU 0.81) |
-| 28 Oct | 27 Oct (Sentinel-2B) | **0.85** |
-
-- **Robust:** shifting the water threshold by ±3 dB keeps F1 between 0.84 and 0.91.
-- **Neighbourhoods:** optical before/after (15 Sep → 17 Oct) agrees with NISAR on the *direction* of change in **93% of 500 m cells** that changed.
-
-![bg right:35% fit](presentation/05-validation.jpg)
-
-<!-- Five independent optical checks, F1 0.85–0.98. -->
+<!-- Source: backend/processing/pipeline.py; docs/methodology.md. 41 tests: 36 synthetic, 5 on the real Sylhet data. -->
 
 ---
 
-## A completely different instrument agrees
+# 4 · Following the Monsoon (Sylhet)
 
-**NASA/CNES SWOT** measures lake water *height* directly, a different physical quantity from every water map.
+**Seven NISAR passes, one orbit (track 69 ascending), 18 Jun → 9 Nov 2026**
 
-- Paired lake by lake between the SWOT passes nearest our NISAR dates, **every lake fell**:
-  - **−1.38 m** median across 11 lakes (pass 467, 15 Jun → 18 Oct)
-  - **−1.25 m** median across 9 lakes (pass 536, 17 Jun → 20 Oct)
-  - SWOT's uncertainty is about 3–5 cm
-- Per-lake water area, NISAR vs SWOT: **r = 0.85**. Per-lake area *change*: r = 0.59, with the same direction for **90%** of lakes.
+- NISAR open water: **79% → 75% → 74% → 69% → 66% → 65% → 63%** of the basin.
+- NASA GPM rainfall: **364 mm** (Jun), 303, 308, 141, **24 mm** (Oct): the monsoon switched off first.
+- NASA/CNES **SWOT**: every observed lake fell, median **−1.38 m** (11 lakes) and **−1.25 m** (9 lakes).
+- NASA **SMAP** soil moisture: 0.45 → 0.23 m³/m³.
 
-<!-- This is our strongest independent evidence that the drainage is real, not a radar artefact. -->
+![bg right:45% fit](presentation/s4-season.jpg)
+
+<!-- Source: /api/study-areas/sylhet_haor/nisar-season, /rainfall, /swot, /soil-moisture. Timing coincidence is not proof of cause. -->
 
 ---
 
-## The innovation: two wavelengths, two answers
+# 5 · What the Satellites Revealed
 
-On the same pixels on 16–17 Oct, the share of the basin that is open water:
+### Open water fell from **1,766 km²** to **1,469 km²** (18 Jun → 16 Oct)
 
-| | NISAR **L-band** (24 cm) | Sentinel-1 **C-band** (5.6 cm) | Optical |
+- **308 km² receded** (289–327 km² for thresholds ±1 dB); 11 km² newly flooded.
+- **281 km² of it is cropland** (268–294 km²): where boro seedbeds can go in first.
+- ≈ **2 km³** of water left the basin (order of magnitude: area × SWOT level drop).
+- Three more ecosystems, same pipeline, no tuning (Okavango is the weak case; Atchafalaya's under-canopy flooding is not open water):
+
+| Area | Pair | Water | Best F1 (optical) |
 |---|---|---|---|
-| Open water | **68%** | 40% | 56% (vs NISAR 66%) |
+| Okavango delta (drying) | 26 Jun → 12 Oct | 644 → 78 km² | 0.50 |
+| Tonlé Sap (flooding) | 19 Jun → 17 Oct | 1,046 → 1,629 km² | 0.92 |
+| Atchafalaya swamp forest | 20 Jun → 18 Oct | 192 → 199 km² | 0.70 |
 
-The **optical map sides with L-band**.
+![bg right:40% fit](presentation/s5-what-drained.jpg)
 
-**Change maps compared** (100 m cells, Sentinel-1 via NASA OPERA RTC-S1, same orbit):
-- The bands agree on **91% of tree-covered cells**, but only **33% of herbaceous wetland**, where C-band alone reports change on **62%**.
-- C-band reacts to wind ripples and emergent plants on shallow water; L-band largely sees through them. **For wetlands, NISAR's L-band is the better tool.**
-
-![bg right:35% fit](presentation/04-l-vs-c-band.jpg)
-
-<!-- Careful phrasing: 'consistent with known physics', not proven for every pixel. -->
+<!-- Source: /api/analysis/sylhet_monsoon (water, impact); /api/analysis/sylhet_monsoon/diagnostics (D_impact); /api/summary. -->
 
 ---
 
-## Why it matters
+# 6 · Measuring Confidence
 
-Between 18 June and 16 October:
+**Water map on each date (single-date accuracy):** optical F1 **0.93, 0.95, 0.98, 0.90, 0.85** at five dates; ±3 dB threshold keeps F1 0.84–0.91.
 
-- **281 km² of cropland** came out of the water: where boro rice seedbeds can go in first.
-- About **1.26 million people** (99% of the basin) live within 1 km of land that drained.
-- Roughly **2 km³** of water left the basin (order of magnitude: NISAR area × SWOT level drop).
-- NASA SMAP soil moisture fell from **0.45 to 0.23 m³/m³** (June → October), so the land is drying too.
+**Change map (a different, lower number):**
+- Direction of change agrees with optical in **93% of 500 m cells**; pixel F1 0.30.
+- Against C-band: F1 0.09–0.25. Why: the C-band reference finds 15–47 points less water than optical on the same days, its four orbits disagree by 2× in June, and the disagreement lies *inside* water bodies, not at edges.
+- **Independent instrument:** SWOT confirms the lakes drained.
 
-**Who could use this:** agricultural extension officers planning seedbed timing, flood and disaster agencies, and wetland conservation groups.
+**Calibration check** catches problems: 0.00 dB for the main pair; flagged for a mixed-version pair (−0.72 dB) and for Tonlé Sap (−0.63 dB).
 
-![bg right:40% fit](presentation/03-optical-photo-and-impact.jpg)
+**Not confirmed:** exact pixel edges of drainage; no field data; no depth.
 
-<!-- Tie back to the problem: timing of drainage = timing of planting. NISAR gives it every 12 days, through cloud. -->
+![bg right:34% fit](presentation/s6-validation.jpg)
 
----
-
-## Built on NASA data
-
-| NASA resource | Role |
-|---|---|
-| **NISAR L2 GCOV** (NASA–ISRO, ASF DAAC) | Primary data, 7 frames |
-| **OPERA DSWx-HLS / DSWx-S1** (NASA JPL, PO.DAAC) | Independent water-map validation |
-| **OPERA RTC-S1** (NASA JPL, ASF DAAC) | C-band comparison |
-| **SWOT LakeSP** (NASA/CNES, PO.DAAC) | Independent lake water levels and areas |
-| **GPM IMERG** (GES DISC) | Rainfall |
-| **SMAP** (NSIDC DAAC) | Soil moisture |
-| **HLS** (LP DAAC) | True-colour images |
-| **ASF HAND** | Terrain check |
-| **CMR, Earthdata Login** | Discovery and access |
-
-**Also checked:** ICESat-2 ATL13 (no usable in-basin pair). **Non-NASA:** ESA WorldCover, JRC Global Surface Water, WorldPop, Copernicus Sentinel-1/2.
-
-<!-- Every source is listed in the app under 'Data sources' with identifiers and links, and served at /api/sources. -->
+<!-- Source: /api/analysis/sylhet_monsoon (validation), /api/analysis/sylhet_recession, /api/analysis/sylhet_monsoon/diagnostics. Okavango is the weak case: F1 0.19–0.59; NISAR over-calls water on dry sand / under-calls vs optical partial water. -->
 
 ---
 
-## The app
+# 7 · Beyond Detection
 
-- Full-bleed **map** with views for water change, backscatter change, ΔB, L vs C band, optical photo, and before/after swipe.
-- **Results panel:** the answer first, then collapsible evidence (validation, wavelengths, season chart, impact, data sources).
-- **1-minute guided tour** for first-time viewers. Click any pixel to read its values.
-- **Live re-analysis** of any compatible pair in about 22 s. Incompatible pairs are refused with the reason.
-- **Stack:**
-  - Python / FastAPI backend with NumPy, rasterio/GDAL and rio-tiler.
-  - Next.js / MapLibre frontend.
-  - Deployed on Vercel, with data in Vercel Blob.
-  - **32 automated tests.**
+**What it gives:** every 12 days, through cloud, a validated map of where water left and what land emerged.
 
-<!-- Show the tour live: Take the 1-minute tour. -->
+- **Users:** agricultural extension officers (seedbed timing), flood and disaster agencies, wetland conservation.
+- **Shown at four sites** on three continents; the pipeline runs any new area with one command.
+- **Honest about limits:** proximity of 1.26 M people to drained land is exposure context, not harm; land cover is a single 2021 map; references are satellites, not field data.
 
----
+**Next:** Bangladesh FFWC river gauges (needs a BWDB key) for ground truth · second NISAR geometry (tracks 141 A, 91 D) · automatic runs on every new pass.
 
-## What we can and can't claim
+**Live:** nasa-spaceapps-2026.vercel.app · **Code:** github.com/anujmish1229/nasa-spaceapps-2026
 
-**Confirmed**
-- Open-water extent on each date: optical F1 0.85–0.98.
-- The wetlands drained: SWOT −1.3 m; NISAR season trend; rainfall stopped.
-- Which neighbourhoods drained: 93% agreement at 500 m.
+![bg right:38% fit](presentation/s7-areas.jpg)
 
-**Not confirmed**
-- Exact pixel edges: F1 ≈ 0.30 vs optical at 20 m.
-- No field data: all references are satellites.
-- Flooded vegetation under canopy can look *bright* to radar, so it may be missed as open water.
-- Impact figures are indicative (2021 land cover, modelled population).
-
-<!-- Judges reward honesty: show we measured our own limits. -->
+<!-- Close: NISAR mapped 308 km² of wetland draining, validated per date at F1 0.85–0.98 against optical, confirmed by SWOT's −1.3 m, and showed where L- and C-band disagree, with that disagreement tested for robustness. -->
 
 ---
 
-## Next steps
-
-- **Ground truth:** Bangladesh FFWC river gauges (the API exists; it needs a key from BWDB).
-- **Second viewing geometry:** two more NISAR tracks over Sylhet (141 ascending, 91 descending) to confirm change patterns.
-- **Operational:** run every 12-day NISAR pass automatically and alert extension offices when land drains.
-- **Scale up:** other wetlands (Mekong, Pantanal, Sudd) with the same validated pipeline.
-
-## Thank you
-
-**Live demo:** nasa-spaceapps-2026.vercel.app · **Code and docs:** github.com/anujmish1229/nasa-spaceapps-2026
-
-<!-- Close by restating the one-line result: NISAR mapped 308 km² of wetland draining, validated at F1 0.90 against optical and confirmed by SWOT's −1.3 m lake-level drop. -->
+<!--
+Screenshots (docs/presentation/), each from the live app at 1440×900:
+- s1-optical-photo.jpg  Sylhet, map view "Optical photo" (HLS 17 Oct true colour), results panel collapsed to the headline.
+- s2-l-vs-c.jpg         Map view "L vs C band"; panel fold "L-band vs C-band" open (land-cover table with Both stable / C only / κ).
+- s3-app-overview.jpg   Default view on load: Water change map + results headline (shows the whole tool).
+- s4-season.jpg         Fold "Season context" open (NISAR season, rainfall, SWOT, SMAP panels).
+- s5-what-drained.jpg   Map view "What drained" (cropland emerged in amber); fold "Why it matters" open with ±1 dB ranges.
+- s6-validation.jpg     Fold "Validation & confidence" open with "Why the change check is weak: diagnostics" expanded.
+- s7-areas.jpg          Tool tray "All study areas" list (four cases).
+-->

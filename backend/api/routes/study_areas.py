@@ -89,3 +89,33 @@ def display_layers(area_id: str) -> dict:
             out.append({"id": name, "kind": "rgb", "date": r["date"], "title": f"True colour, NASA HLS {r['date']}",
                         "tiles": f"/api/ref-tiles/{area_id}/{name}/{{z}}/{{x}}/{{y}}.png"})
     return {"layers": out}
+
+
+@router.get("/summary")
+def summary() -> list[dict]:
+    """Headline numbers of each study area's featured (or newest) analysis, for the overview table."""
+    from backend.ingestion import registry
+    from backend.processing import pipeline
+
+    out = []
+    results = pipeline.list_results()
+    for area in registry.study_areas():
+        fp = area.get("featured_pair")
+        mine = [r for r in results if r["study_area_id"] == area["id"] and not r["subset"]]
+        pick = next((r for r in mine if fp and r["earlier_date"] == fp[0] and r["later_date"] == fp[1]), mine[0] if mine else None)
+        if not pick:
+            continue
+        r = pipeline.load_result(pick["id"]) or {}
+        w = r.get("water") or {}
+        acc = (r.get("validation") or {}).get("accuracy") or []
+        opt = [a["open_water"]["f1"] for a in acc if a["product"] == "DSWX_HLS" and a["open_water"]["f1"] is not None]
+        anyf = [a["open_water"]["f1"] for a in acc if a["open_water"]["f1"] is not None]
+        sw = ((r.get("validation") or {}).get("swot") or {}).get("passes") or []
+        out.append({"area_id": area["id"], "name": area["name"], "category": area.get("category"), "analysis_id": pick["id"],
+                    "earlier_date": pick["earlier_date"], "later_date": pick["later_date"],
+                    "water_earlier_km2": w.get("earlier_km2"), "water_later_km2": w.get("later_km2"),
+                    "lost_km2": w.get("lost_km2"), "gained_km2": w.get("gained_km2"),
+                    "best_f1": max(opt) if opt else (max(anyf) if anyf else None), "f1_reference": "optical" if opt else ("C-band" if anyf else None),
+                    "swot_median_change_m": sw[0]["median_change_m"] if sw else None,
+                    "lc_agreement_percent": ((r.get("sensor_comparison") or {}).get("stats") or {}).get("overall_agreement_percent")})
+    return out

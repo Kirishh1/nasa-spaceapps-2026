@@ -46,20 +46,10 @@ def compare(nisar_cls: np.ndarray, cband_cls: np.ndarray, landcover: np.ndarray 
     agreement, stats = dis.compare(a, b)
     by_lc = []
     if landcover is not None:
-        lc = _block_majority(landcover, factor)
-        for code, name in LANDCOVER_NAMES.items():
-            m = (lc == code) & (agreement > 0)
-            n = int(m.sum())
-            if n < 25:
-                continue
-            cnt = {k: int(((agreement == v) & m).sum()) for k, v in
-                   [("agree", None), ("only_l", dis.ONLY_A), ("only_c", dis.ONLY_B), ("opposite", dis.OPPOSITE)] if v}
-            agree = int(np.isin(agreement[m], [dis.AGREE_STABLE, dis.AGREE_DECREASE, dis.AGREE_INCREASE]).sum())
-            by_lc.append({"class": code, "name": name, "cells": n,
-                          "agree_percent": round(100 * agree / n, 1),
-                          "l_band_only_percent": round(100 * cnt["only_l"] / n, 1),
-                          "c_band_only_percent": round(100 * cnt["only_c"] / n, 1),
-                          "opposite_percent": round(100 * cnt["opposite"] / n, 1)})
+        from backend.validation.diagnostics import landcover_agreement_detail
+
+        # per class: agreement split into "both stable" vs "both changed alike", kappa, 5 km block-bootstrap 95% CI
+        by_lc = landcover_agreement_detail(a, b, _block_majority(landcover, factor), LANDCOVER_NAMES, block=50, n_boot=500)
     agg_transform = transform * transform.scale(factor, factor)
     return {"agreement": agreement, "transform": agg_transform, "stats": stats, "by_landcover": by_lc,
             "cell_size_m": abs(transform.a) * factor}

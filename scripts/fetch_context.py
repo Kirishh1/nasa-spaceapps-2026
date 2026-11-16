@@ -28,7 +28,7 @@ from backend import config, storage  # noqa: E402
 from backend.ingestion import opera, registry  # noqa: E402
 
 HAND_URL = "https://glo-30-hand.s3.us-west-2.amazonaws.com/v1/2021/Copernicus_DSM_COG_10_{lat}_00_{lon}_00_HAND.tif"
-WORLDPOP_URL = "https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/2025/BGD/v1/100m/constrained/bgd_pop_2025_CN_100m_R2025A_v1.tif"
+WORLDPOP_URL = "https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/2025/{ISO}/v1/100m/constrained/{iso}_pop_2025_CN_100m_R2025A_v1.tif"
 
 
 def grid(area_id: str):
@@ -45,31 +45,37 @@ def hand(area, crs, transform, shape) -> np.ndarray:
     out = np.full(shape, np.nan, "float32")
     for lat in range(math.floor(s), math.floor(n) + 1):
         for lon in range(math.floor(w), math.floor(e) + 1):
-            url = HAND_URL.format(lat=f"N{lat:02d}", lon=f"E{lon:03d}")
-            with rasterio.open("/vsicurl/" + url) as src:
-                tmp = np.full(shape, np.nan, "float32")
-                reproject(rasterio.band(src, 1), tmp, src_nodata=src.nodata, dst_transform=transform, dst_crs=crs,
-                          dst_nodata=np.nan, resampling=Resampling.bilinear)
+            url = HAND_URL.format(lat=f"{'N' if lat >= 0 else 'S'}{abs(lat):02d}", lon=f"{'E' if lon >= 0 else 'W'}{abs(lon):03d}")
+            try:
+                with rasterio.open("/vsicurl/" + url) as src:
+                    tmp = np.full(shape, np.nan, "float32")
+                    reproject(rasterio.band(src, 1), tmp, src_nodata=src.nodata, dst_transform=transform, dst_crs=crs,
+                              dst_nodata=np.nan, resampling=Resampling.bilinear)
+            except rasterio.errors.RasterioIOError:  # no tile (open ocean)
+                print(f"HAND tile missing: {url.rsplit('/', 1)[-1]}")
+                continue
             fill = np.isnan(out)
             out[fill] = tmp[fill]
     return out
 
 
-def worldpop(crs, transform, shape) -> np.ndarray:
+def worldpop(crs, transform, shape, iso3: str = "BGD") -> np.ndarray:
     """People per pixel: resample population density (sum-preserving via area ratio)."""
-    local = config.RAW_DIR / "worldpop" / WORLDPOP_URL.rsplit("/", 1)[-1]
+    url = WORLDPOP_URL.format(ISO=iso3.upper(), iso=iso3.lower())
+    local = config.RAW_DIR / "worldpop" / url.rsplit("/", 1)[-1]
     if not local.exists():  # the WorldPop server does not support HTTP range requests, so download once
         import urllib.request
 
         local.parent.mkdir(parents=True, exist_ok=True)
-        urllib.request.urlretrieve(WORLDPOP_URL, local)
+        urllib.request.urlretrieve(url, local)
     with rasterio.open(local) as src:
         dens = np.full(shape, np.nan, "float32")
         reproject(rasterio.band(src, 1), dens, src_nodata=src.nodata, dst_transform=transform, dst_crs=crs,
                   dst_nodata=np.nan, resampling=Resampling.average)
         # source cells are ~100 m (3 arc-seconds); convert people/cell to people per 20 m pixel
         px_area = abs(transform.a * transform.e)
-        src_cell_m2 = (3 / 3600 * 111_320) ** 2 * math.cos(math.radians(25))
+        lat0 = (src.bounds.bottom + src.bounds.top) / 2
+        src_cell_m2 = (3 / 3600 * 111_320) ** 2 * math.cos(math.radians(lat0))
     return np.nan_to_num(dens, nan=0.0) * (px_area / src_cell_m2)
 
 
@@ -116,7 +122,8 @@ def hls_rgb(area, date: str, crs, transform, shape) -> tuple[np.ndarray, list[st
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--area", default="sylhet_haor")
-    ap.add_argument("--hls-dates", nargs="*", default=["2026-09-15", "2026-10-17"])
+    ap.add_argument("--hls-dates", nargs="*", default=None, help="defaults to the study area's clear validation dates")
+    ap.add_argument("--no-worldpop", action="store_true", help="skip population (the national file can be > 1 GB)")
     a = ap.parse_args()
     area = registry.get_study_area(a.area)
     crs, transform, shape = grid(a.area)
@@ -130,12 +137,14 @@ def main() -> None:
     refs.append({"kind": "hand", "path": f"{base}/hand.tif", "source": "ASF Global 30 m HAND (Copernicus GLO-30), CC0"})
     print(f"HAND: median {np.nanmedian(h):.1f} m, {np.mean(h > 15):.1%} of pixels > 15 m")
 
-    p = worldpop(crs, transform, shape)
-    opera.write_cog(config.DATA_DIR / f"{base}/worldpop_2025.tif", p.astype("float32"), crs, transform, np.nan, {"product": "WorldPop R2025A 2025 constrained", "units": "people per pixel"})
-    refs.append({"kind": "worldpop", "path": f"{base}/worldpop_2025.tif", "source": "WorldPop R2025A, doi:10.5258/SOTON/WP00839"})
-    print(f"WorldPop: {p.sum():,.0f} people in the analysis grid")
+    if not a.no_worldpop:
+        p = worldpop(crs, transform, shape, area.get("country_iso3", "BGD"))
+        opera.write_cog(config.DATA_DIR / f"{base}/worldpop_2025.tif", p.astype("float32"), crs, transform, np.nan, {"product": "WorldPop R2025A 2025 constrained", "units": "people per pixel"})
+        refs.append({"kind": "worldpop", "path": f"{base}/worldpop_2025.tif", "source": "WorldPop R2025A, doi:10.5258/SOTON/WP00839"})
+        print(f"WorldPop: {p.sum():,.0f} people in the analysis grid")
 
-    for d in a.hls_dates:
+    hls_dates = a.hls_dates if a.hls_dates is not None else sorted({r["date"] for r in refs if r.get("product") == "DSWX_HLS" and r["kind"] == "water"})
+    for d in hls_dates:
         res = hls_rgb(area, d, crs, transform, shape)
         if res is None:
             print(f"HLS {d}: no usable scene")

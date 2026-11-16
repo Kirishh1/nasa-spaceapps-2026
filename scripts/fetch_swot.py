@@ -74,21 +74,21 @@ def main() -> None:
     bbox = area["bbox"]
     earthaccess.login(strategy="environment")
     grans = earthaccess.search_data(short_name=SHORT_NAME, temporal=(a.start, a.end), bounding_box=tuple(bbox))
-    pass_of = lambda g: re.search(r"_\d{3}_(\d{3})_AS_", g["umm"]["GranuleUR"]).group(1)  # noqa: E731
+    pass_of = lambda g: re.search(r"_\d{3}_(\d{3})_[A-Z]{2}_", g["umm"]["GranuleUR"]).group(1)  # noqa: E731
     raw = config.RAW_DIR / "swot"
 
     # 1) detect passes that observe lakes here, from the first cycle
     first_end = (dt.date.fromisoformat(a.start) + dt.timedelta(days=21)).isoformat()
     first = [g for g in grans if g["umm"]["TemporalExtent"]["RangeDateTime"]["BeginningDateTime"][:10] <= first_end]
     passes = set()
-    for g, f in zip(first, earthaccess.download(first, local_path=str(raw))):
+    for g, f in zip(first, earthaccess.download(first, local_path=str(raw)) if first else []):
         if read_lakes(Path(f), bbox):
             passes.add(pass_of(g))
     print("passes observing lakes here:", sorted(passes))
 
     # 2) all cycles for those passes
     sel = [g for g in grans if pass_of(g) in passes]
-    files = earthaccess.download(sel, local_path=str(raw))
+    files = earthaccess.download(sel, local_path=str(raw)) if sel else []
     by_pass: dict[str, dict[str, list[dict]]] = {}
     granules: dict[str, list[str]] = {}
     outlines: dict[str, dict] = {}

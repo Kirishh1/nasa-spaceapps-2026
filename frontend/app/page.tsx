@@ -20,17 +20,18 @@ const DEFAULT_CONFIG: AnalysisConfig = {
   frequency: "A", polarization: "HH", threshold_db: 3, speckle_filter: "lee", filter_size: 5, water_threshold_db: -18, water_threshold_mode: "otsu", min_region_m2: 20000,
 };
 
-type View = "water" | "change" | "delta" | "lc" | "photo" | "swipe";
+type View = "water" | "change" | "delta" | "lc" | "impact" | "photo" | "swipe";
 const VIEWS: { id: View; label: string; layers: string[]; hint: string; needs?: string }[] = [
   { id: "water", label: "Water change", layers: ["water_change", "later_db"], hint: "Open water that receded or appeared between the two NISAR passes", needs: "water_change" },
   { id: "change", label: "Backscatter change", layers: ["change_class", "earlier_db"], hint: "Pixels whose backscatter moved more than the threshold" },
   { id: "delta", label: "ΔB", layers: ["delta_db"], hint: "Continuous change in dB, blue = darker, red = brighter" },
   { id: "lc", label: "L vs C band", layers: ["lc_agreement", "later_db"], hint: "Where NISAR L-band and Sentinel-1 C-band change maps agree or disagree", needs: "lc_agreement" },
+  { id: "impact", label: "What drained", layers: ["drained_landcover", "later_db"], hint: "Land that emerged from water, by land cover (ESA WorldCover 2021). Turn on population density in Layers for context", needs: "drained_landcover" },
   { id: "photo", label: "Optical photo", layers: ["@photo"], hint: "Natural-colour NASA HLS image (Landsat/Sentinel-2) from the clear day closest to the later radar pass", needs: "@photo" },
   { id: "swipe", label: "Before / after", layers: [], hint: "Drag the divider across the two radar frames" },
 ];
 
-const PLY_ORDER = ["lc_agreement", "water_change", "inundation", "change_class", "cband_change", "delta_db", "jrc_occurrence", "later_db", "earlier_db"];
+const PLY_ORDER = ["lc_agreement", "drained_landcover", "population", "water_change", "inundation", "change_class", "cband_change", "delta_db", "jrc_occurrence", "later_db", "earlier_db"];
 
 function Wordmark() {
   return (
@@ -111,8 +112,10 @@ export default function Workspace() {
       const feat = areas.find((x) => x.id === areaId)?.featured_pair;
       let pairIds: [string, string] | null = null;
       if (feat) {
-        const e = proc.find((o) => o.date === feat[0]);
-        const l = proc.find((o) => o.date === feat[1]);
+        // newest reprocessing of a date wins (ids end in a product counter, e.g. _002 over _001)
+        const pick = (d: string) => proc.filter((o) => o.date === d).sort((a, b) => b.id.localeCompare(a.id))[0];
+        const e = pick(feat[0]);
+        const l = pick(feat[1]);
         if (e && l) pairIds = [e.id, l.id];
       }
       for (let i = proc.length - 1; !pairIds && i > 0; i--) {

@@ -9,6 +9,8 @@ export interface StudyArea {
   description?: string;
   research_question?: string;
   featured_pair?: [string, string];
+  category?: string;
+  story?: { problem?: string; impact?: string };
   bbox: [number, number, number, number];
   geometry: Polygon;
 }
@@ -143,7 +145,9 @@ export interface SensorComparison {
   status: "available" | "unavailable"; reason?: string; sensor?: string; method?: string; cell_size_m?: number;
   earlier?: { date: string; track: number; granules: string[] }; later?: { date: string; track: number; granules: string[] };
   stats?: { compared_cells: number; counts: Record<string, number>; overall_agreement_percent: number | null; change_agreement_percent: number | null };
-  by_landcover?: { class: number; name: string; cells: number; agree_percent: number; l_band_only_percent: number; c_band_only_percent: number; opposite_percent: number }[];
+  by_landcover?: { class: number; name: string; cells: number; agree_percent: number; l_band_only_percent: number; c_band_only_percent: number; opposite_percent: number;
+    agree_stable_percent?: number; agree_change_percent?: number; change_agreement_where_either_changed_percent?: number | null; kappa?: number | null;
+    agree_percent_ci95?: [number, number] | null; blocks?: number }[];
   cband_change_percent?: { decrease: number; increase: number };
 }
 
@@ -212,7 +216,7 @@ export interface AnalysisResult {
   precipitation: Precipitation | null;
   sensor_comparison: SensorComparison;
   water?: WaterInfo;
-  impact?: { cropland_emerged_km2?: number; wetland_emerged_km2?: number; people_within_1km_of_receded_water?: number; people_in_area?: number;
+  impact?: { cropland_flooded_km2?: number; cropland_emerged_km2?: number; wetland_emerged_km2?: number; people_within_1km_of_receded_water?: number; people_in_area?: number;
     population_source?: string; volume_change_km3_approx?: number; note_cropland?: string; note_volume?: string };
   layers: string[];
 }
@@ -314,6 +318,10 @@ export const api = {
   displayLayers: (a: string) => request<{ layers: { id: string; kind: "rgb"; date: string; title: string; tiles: string }[] }>(`/api/study-areas/${encodeURIComponent(a)}/display-layers`),
   rainfall: (studyArea: string) => request<{ status: string; series: { date: string; mean_mm: number }[] }>(`/api/study-areas/${encodeURIComponent(studyArea)}/rainfall`),
   timeline: (studyArea: string) => request<{ status: string; series: TimelinePoint[] }>(`/api/study-areas/${encodeURIComponent(studyArea)}/timeline`),
+  diagnostics: (id: string) => request<Diagnostics>(`/api/analysis/${encodeURIComponent(id)}/diagnostics`),
+  summary: () => request<{ area_id: string; name: string; category?: string; analysis_id: string; earlier_date: string; later_date: string;
+    water_earlier_km2?: number; water_later_km2?: number; lost_km2?: number; gained_km2?: number; best_f1?: number | null; f1_reference?: string | null;
+    swot_median_change_m?: number | null; lc_agreement_percent?: number | null }[]>("/api/summary"),
   analyses: (studyArea: string) => request<StoredAnalysis[]>(`/api/analyses?study_area=${encodeURIComponent(studyArea)}`),
   analysis: (id: string) => request<AnalysisResult | JobStatus>(`/api/analysis/${id}`),
   layers: (id: string) => request<{ id: string; layers: MapLayer[] }>(`/api/analysis/${id}/layers`),
@@ -322,3 +330,18 @@ export const api = {
 };
 
 export const tileUrl = (t: string) => `${API_BASE}${t}`;
+
+export interface Diagnostics {
+  status: "available" | "unavailable";
+  reason?: string;
+  A_reference_quality?: {
+    s1_vs_optical_same_days: { s1_date: string; s1_track: string; optical_date: string; f1_open: number | null; s1_water_fraction: number | null; optical_water_fraction: number | null }[];
+    s1_change_self_agreement?: { pairs: number; f1_min: number; f1_max: number } | null;
+  };
+  B_change_vs_s1?: { track: string; dates: [string, string]; total_offset_days: number; f1_lost_open: number | null; nisar_lost_km2: number; reference_lost_km2: number;
+    reference_water_km2: [number, number]; nisar_water_km2: [number, number]; edge_buffer: { exclude_within_px: number; f1: number | null; kept_fraction: number }[] }[];
+  B_error_budget?: { nisar_lost_km2: number; per_date_water_map_disagreement: { nisar_date: string; reference: string; disagreement_km2: number; f1: number | null }[] };
+  D_impact?: { threshold_sensitivity: { threshold_shift_db: number; lost_km2: number; gained_km2: number; cropland_emerged_km2?: number }[];
+    drained_area_by_landcover_km2: Record<string, number>;
+    population?: { people_in_area: number; people_within_distance_of_drained_land: Record<string, number>; note: string } | null; landcover_caveat: string };
+}

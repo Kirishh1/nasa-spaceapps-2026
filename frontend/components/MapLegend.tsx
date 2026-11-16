@@ -7,6 +7,7 @@ const RAMP: Record<string, string> = {
   greys_r: "linear-gradient(90deg,#000,#fff)",
   rdbu_r: "linear-gradient(90deg,#053061,#2166ac,#4393c3,#92c5de,#f7f7f7,#f4a582,#d6604d,#b2182b,#67001f)",
   blues: "linear-gradient(90deg,#f7fbff,#c6dbef,#6baed6,#2171b5,#08306b)",
+  ylorrd: "linear-gradient(90deg,#ffffcc,#fed976,#fd8d3c,#e31a1c,#800026)",
 };
 
 /** Legend pinned on the transparency for the top-most visible data ply, so the map reads on its own. */

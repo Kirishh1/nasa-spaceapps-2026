@@ -32,10 +32,15 @@ def main() -> None:
     area = registry.get_study_area(a.area)
     refs = references.load(a.area)
     out = []
-    for o in sorted(registry.observations(), key=lambda o: o["start_time"]):
+    seen: set[str] = set()
+    # newest reprocessing (highest product counter, e.g. _002 over _001) first within a date
+    for o in sorted(sorted(registry.observations(), key=lambda o: o["id"], reverse=True), key=lambda o: o["start_time"][:10]):
+        if o["date"] in seen:  # reprocessed duplicates of one acquisition
+            continue
         rec = registry.processed_layer(o, a.area, "A", "HHHH")
         if not rec:
             continue
+        seen.add(o["date"])
         with rasterio.open(rec["path"]) as s:
             lin = s.read(1).astype("float32")
             crs, tr = s.crs, s.transform

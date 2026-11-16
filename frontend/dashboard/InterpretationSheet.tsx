@@ -5,6 +5,7 @@ import { ChevronRight, ExternalLink } from "lucide-react";
 import type { AnalysisResult, Observation, StudyArea } from "@/services/api";
 import { ChangeHistogram } from "./ChangeHistogram";
 import { DataSources } from "./DataSources";
+import { ChangeDiagnostics, ImpactSensitivity } from "./Diagnostics";
 import { WaterTimeline } from "./WaterTimeline";
 import { RainfallStrip } from "./RainfallStrip";
 
@@ -196,17 +197,19 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
           <Fold id="fold-impact" title="Why it matters" value={result.impact.cropland_emerged_km2 !== undefined ? `${km2(result.impact.cropland_emerged_km2)} km² cropland out of water` : undefined}>
             <dl>
               {result.impact.cropland_emerged_km2 !== undefined && <Row k="Cropland that emerged from water" v={km2(result.impact.cropland_emerged_km2)} sub="km²" />}
+              {result.impact.cropland_flooded_km2 !== undefined && <Row k="Cropland newly flooded" v={km2(result.impact.cropland_flooded_km2)} sub="km²" />}
               {result.impact.wetland_emerged_km2 !== undefined && <Row k="Herbaceous wetland that emerged" v={km2(result.impact.wetland_emerged_km2)} sub="km²" />}
-              {result.impact.people_within_1km_of_receded_water !== undefined && <Row k="People within 1 km of drained land" v={result.impact.people_within_1km_of_receded_water.toLocaleString()} sub={result.impact.people_in_area ? `of ${result.impact.people_in_area.toLocaleString()}` : undefined} />}
+              {result.impact.people_in_area !== undefined && <Row k="People living in the area (modelled)" v={result.impact.people_in_area.toLocaleString()} />}
               {result.impact.volume_change_km3_approx !== undefined && <Row k="Water volume change (approx.)" v={result.impact.volume_change_km3_approx.toFixed(1)} sub="km³" />}
             </dl>
-            {result.impact.note_cropland && <p className="mt-2 text-[11.5px] leading-snug text-ink-3">{result.impact.note_cropland} The map shows where seedbeds can go in first.</p>}
+            {result.impact.note_cropland && <p className="mt-2 text-[11.5px] leading-snug text-ink-3">{result.impact.note_cropland}</p>}
             {result.impact.note_volume && <p className="mt-1 text-[11.5px] leading-snug text-ink-3">{result.impact.note_volume}</p>}
-            {result.impact.population_source && <p className="mt-1 text-[11px] text-ink-3">Population: {result.impact.population_source}. Land cover: ESA WorldCover 2021.</p>}
+            <ImpactSensitivity id={result.id} />
+            {result.impact.population_source && <p className="mt-1 text-[11px] text-ink-3">Population: {result.impact.population_source}. Land cover: ESA WorldCover 2021. Map view &ldquo;What drained&rdquo; shows these areas.</p>}
           </Fold>
         )}
 
-        <Fold id="fold-validation" title="Validation & confidence" value={best ? `F1 ${f(best.open_water.f1)} vs ${best.product === "DSWX_HLS" ? "optical" : "C-band"}` : "Not validated"} tone={best ? "ink" : "warn"}>
+        <Fold id="fold-validation" title="Validation & confidence" value={best ? `water map F1 ${f(best.open_water.f1)} vs ${best.product === "DSWX_HLS" ? "optical" : "C-band"}` : "Not validated"} tone={best ? "ink" : "warn"}>
           {acc.length > 0 && (
             <>
               <p className="mb-2 text-[12px] leading-relaxed text-ink-2">
@@ -280,6 +283,7 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
                   </p>
                 );
               })()}
+              <ChangeDiagnostics id={result.id} />
               {cal?.status === "available" && (
                 <p className={`mt-3 text-[11.5px] leading-snug ${cal.stable ? "text-ink-3" : "text-warn"}`}>
                   Calibration check: buildings and trees that stayed land moved by a median of <span className="num">{(Math.abs(cal.median_delta_db ?? 0) < 0.005 ? 0 : cal.median_delta_db ?? 0).toFixed(2)} dB</span>
@@ -303,7 +307,7 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
           {jrc && !jrc.status && jrc.caveat && <p className="mt-2 text-[11.5px] leading-snug text-ink-3">JRC historical water: {jrc.caveat}</p>}
         </Fold>
 
-        <Fold id="fold-lband" title="L-band vs C-band" value={sc.status === "available" ? `${f(sc.stats?.overall_agreement_percent, 0)}% of cells agree` : acc.length ? "L-band sees more water" : "no C-band data"} tone={sc.status === "available" || acc.length ? "ink" : "muted"}>
+        <Fold id="fold-lband" title="L-band vs C-band" value={sc.status === "available" ? `${f(sc.stats?.overall_agreement_percent, 0)}% of cells agree` : acc.length ? "water extent compared" : "no C-band data"} tone={sc.status === "available" || acc.length ? "ink" : "muted"}>
           {acc.length > 0 && (
             <>
               <p className="mb-2 text-[12px] leading-relaxed text-ink-2">Open water on the same days, counted over the pixels both maps observed:</p>
@@ -314,11 +318,26 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
                     v={`${Math.round(100 * (a.open_water.predicted_fraction ?? 0))}% vs ${Math.round(100 * (a.open_water.reference_fraction ?? 0))}%`} />
                 ))}
               </dl>
-              <p className="mt-2 text-[11.5px] leading-snug text-ink-3">
-                NISAR&apos;s longer L-band wavelength agrees closely with the cloud-free optical map, while the C-band map finds far less water.
-                A likely reason: in shallow haor water with emergent rice and grasses, C-band scatters off the vegetation and looks like land, whereas L-band passes through to the water surface.
-                This is consistent with known wavelength behaviour but has not been proven for this scene.
-              </p>
+              {(() => {
+                // data-driven: compare with whichever references exist for the same NISAR date
+                const byDate = new Map<string, { o?: typeof acc[number]; c?: typeof acc[number] }>();
+                for (const a of acc) {
+                  const e = byDate.get(a.nisar_date) ?? {};
+                  if (a.product === "DSWX_HLS") e.o = a; else e.c = a;
+                  byDate.set(a.nisar_date, e);
+                }
+                const both = [...byDate.values()].find((x) => x.o && x.c);
+                if (!both?.o || !both.c) return null;
+                const n = both.o.open_water.predicted_fraction ?? 0, o = both.o.open_water.reference_fraction ?? 0, c = both.c.open_water.reference_fraction ?? 0;
+                const closerToOptical = Math.abs(n - o) < Math.abs(c - o);
+                return (
+                  <p className="mt-2 text-[11.5px] leading-snug text-ink-3">
+                    On {fmtDate(both.o.nisar_date)}, the cloud-free optical map shows {Math.round(100 * o)}% open water, NISAR L-band {Math.round(100 * n)}% and C-band {Math.round(100 * c)}%:
+                    {closerToOptical ? " NISAR is closer to the optical map." : " here the C-band map is closer to the optical map."}
+                    {c < o - 0.05 ? " C-band finding less water is consistent with shorter waves scattering off emergent plants or canopy, which L-band largely passes through. This is consistent with known physics but not proven for this scene." : ""}
+                  </p>
+                );
+              })()}
             </>
           )}
           {sc.status === "available" ? (() => {
@@ -332,23 +351,36 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
                   the bands agree on <span className="num text-ink">{f(sc.stats?.overall_agreement_percent, 0)}%</span> of cells.
                 </p>
                 <table className="mt-2 w-full text-[11.5px]">
-                  <thead><tr className="text-ink-3"><th className="py-1 text-left font-normal">Land cover</th><th className="text-right font-normal">Agree</th><th className="text-right font-normal">L only</th><th className="text-right font-normal">C only</th></tr></thead>
+                  <thead><tr className="text-ink-3">
+                    <th className="py-1 text-left font-normal">Land cover</th>
+                    <th className="text-right font-normal" title="Both bands: no significant change">Both stable</th>
+                    <th className="text-right font-normal" title="Both bands: same change direction">Both changed</th>
+                    <th className="text-right font-normal">C only</th>
+                    <th className="text-right font-normal" title="Cohen's kappa: agreement beyond chance (0 = chance, 1 = perfect)">κ</th>
+                  </tr></thead>
                   <tbody className="num">
                     {rows.map((r) => (
-                      <tr key={r.class} className="border-t border-rule-soft">
-                        <td className="py-1 font-sans text-ink-2">{r.name}</td><td className="text-right text-ink">{r.agree_percent}%</td>
-                        <td className="text-right text-ink">{r.l_band_only_percent}%</td><td className="text-right text-ink">{r.c_band_only_percent}%</td>
+                      <tr key={r.class} className="border-t border-rule-soft" title={`${r.cells.toLocaleString()} cells · total agreement ${r.agree_percent}%${r.agree_percent_ci95 ? ` (95% CI ${r.agree_percent_ci95[0]}–${r.agree_percent_ci95[1]}%)` : ""}`}>
+                        <td className="py-1 font-sans text-ink-2">{r.name}<span className="block text-[10.5px] text-ink-3">{r.cells.toLocaleString()} cells</span></td>
+                        <td className="text-right text-ink-2">{r.agree_stable_percent ?? "–"}%</td>
+                        <td className="text-right text-ink">{r.agree_change_percent ?? "–"}%</td>
+                        <td className="text-right text-ink">{r.c_band_only_percent}%</td>
+                        <td className="text-right text-ink-2">{r.kappa ?? "–"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {cOnly.length > 0 && (
+                <p className="mt-1.5 text-[11px] leading-snug text-ink-3">
+                  &ldquo;Both stable&rdquo; is agreement that nothing changed. It counts as agreement but says little about detecting change; κ corrects for agreement expected by chance.
+                </p>
+                {cOnly.length > 0 && cOnly.every((r) => [80, 90, 95].includes(r.class)) && (
                   <p className="mt-2 text-[12px] leading-relaxed text-ink-2">
-                    The disagreement is concentrated where there is water: C-band alone reports change on{" "}
-                    {cOnly.map((r, i) => <span key={r.class}>{i ? " and " : ""}<span className="num text-ink">{r.c_band_only_percent}%</span> of {r.name.toLowerCase()}</span>)},
-                    while {stable?.name.toLowerCase()} agrees on <span className="num text-ink">{stable?.agree_percent}%</span>.
-                    C-band (5.6 cm) is highly sensitive to centimetre-scale wind ripples on water and to emergent vegetation; L-band (24 cm) is not.
-                    That fits C-band reacting to water-surface roughness and plant growth rather than to drainage alone. It is a physically consistent explanation, not a proven one.
+                    Where there is water the bands disagree: C-band alone reports change on{" "}
+                    {cOnly.map((r, i) => <span key={r.class}>{i ? " and " : ""}<span className="num text-ink">{r.c_band_only_percent}%</span> of {r.name.toLowerCase()} cells</span>)}
+                    {cOnly[0].agree_percent_ci95 ? <> (agreement {cOnly[0].agree_percent}%, 95% interval {cOnly[0].agree_percent_ci95[0]}–{cOnly[0].agree_percent_ci95[1]}%)</> : null}.
+                    {stable && (stable.agree_stable_percent ?? 0) > 0.8 * stable.agree_percent ? <> The high agreement in {stable.name.toLowerCase()} is mostly both bands seeing no change.</> : null}
+                    {" "}C-band (5.6 cm) is more sensitive than L-band (24 cm) to wind ripples on water and to emergent plants, which fits C-band reacting to surface roughness and plant growth rather than drainage alone.
+                    The bands also differ in polarization and viewing geometry, so this explanation is plausible, not proven.
                   </p>
                 )}
                 <p className="mt-2 text-[11.5px] leading-snug text-ink-3">{sc.method}</p>

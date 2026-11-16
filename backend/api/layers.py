@@ -31,6 +31,14 @@ LAYERS = {
                      "description": "Same method applied to OPERA RTC-S1 VV backscatter"},
     "lc_agreement": {"title": "L-band vs C-band agreement", "kind": "categorical", "legend": COMPARISON_LEGEND,
                      "description": "Where NISAR and Sentinel-1 change maps agree or disagree (100 m cells)"},
+    "drained_landcover": {"title": "What kind of land drained", "kind": "categorical", "legend": [
+        {"value": 1, "label": "Cropland that emerged from water", "color": "#d9a400"},
+        {"value": 2, "label": "Wetland or grassland that emerged", "color": "#7fb069"},
+        {"value": 3, "label": "Other land that emerged", "color": "#a3a3a3"},
+        {"value": 4, "label": "Cropland newly flooded", "color": "#22d3ee"}],
+        "description": "Water lost between the two dates, by ESA WorldCover 2021 land cover (single-date map)"},
+    "population": {"title": "Population density (WorldPop 2025)", "kind": "continuous", "units": "people/ha", "rescale": (0.0, 40.0), "colormap": "ylorrd",
+                   "description": "Modelled residents per hectare (WorldPop R2025A, 100 m, constrained). Context only: proximity is not harm."},
     "jrc_occurrence": {"title": "JRC historical surface water", "kind": "continuous", "units": "% of months", "rescale": (1.0, 100.0), "colormap": "blues",
                        "description": "Reference: how often each pixel was water 1984–2021"},
 }

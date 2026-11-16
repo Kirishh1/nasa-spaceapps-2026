@@ -357,8 +357,9 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
         lost = wchange == water.WATER_LOST
         impact["cropland_emerged_km2"] = km2(lost & (landcover == 40))
         impact["wetland_emerged_km2"] = km2(lost & (landcover == 90))
-        impact["note_cropland"] = ("Cropland (ESA WorldCover) that was open water on the earlier date and land on the later date. In the haors, "
-                                   "boro rice seedbeds are prepared as water recedes in November–December.")
+        impact["note_cropland"] = ("Cropland (ESA WorldCover) that was open water on the earlier date and land on the later date. "
+                                   + ((area.get("story") or {}).get("impact") or ""))
+        impact["cropland_flooded_km2"] = km2((wchange == water.WATER_GAINED) & (landcover == 40))
     pop_ref = next((r for r in refs if r["kind"] == "worldpop"), None)
     if pop_ref and (pth := storage.local_file(pop_ref["path"])):
         with rasterio.open(pth) as src:
@@ -368,6 +369,20 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
             impact["people_within_1km_of_receded_water"] = int(round(float(np.nansum(pop[near & in_area]))))
             impact["people_in_area"] = int(round(float(np.nansum(pop[in_area]))))
             impact["population_source"] = pop_ref.get("source")
+    drained_lc = None
+    if landcover is not None:
+        drained_lc = np.zeros(shape_hw, "uint8")
+        lost_ = wchange == water.WATER_LOST
+        drained_lc[lost_] = 3
+        drained_lc[lost_ & np.isin(landcover, (30, 90))] = 2
+        drained_lc[lost_ & (landcover == 40)] = 1
+        drained_lc[(wchange == water.WATER_GAINED) & (landcover == 40)] = 4
+    pop_density = None
+    if pop_ref and (pth := storage.local_file(pop_ref["path"])):
+        with rasterio.open(pth) as src:
+            pp = src.read(1).astype("float32")
+        if pp.shape == shape_hw:
+            pop_density = np.where(in_area, pp / (px_m2 / 1e4), np.nan)  # people per hectare
     if sw.get("status") == "available" and sw.get("passes"):
         dh = float(np.median([p_["median_change_m"] for p_ in sw["passes"]]))
         mean_area = (water_info["earlier_km2"] + water_info["later_km2"]) / 2
@@ -404,7 +419,10 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
                     "decrease": round(100 * float((cband_cls == cd.DECREASE).sum() / max(1, cv.sum())), 2),
                     "increase": round(100 * float((cband_cls == cd.INCREASE).sum() / max(1, cv.sum())), 2)},
                 "method": "Each sensor's ΔB is classified with the same threshold on its own data; class maps are aggregated to "
-                          f"{comp['cell_size_m']:.0f} m cells (dominant class) and compared. Raw L- and C-band backscatter are never differenced.",
+                          f"{comp['cell_size_m']:.0f} m cells (a change class wins a cell when it covers ≥30% of its valid pixels) and compared. "
+                          "Raw L- and C-band backscatter are never differenced. The bands also differ in polarization (NISAR HH, Sentinel-1 VV), "
+                          "viewing geometry and exact dates, so not every difference is due to wavelength. Land cover: ESA WorldCover 2021, "
+                          "dominant class per cell. Intervals: 95% bootstrap over 5 km blocks.",
             }
 
     step("Writing map layers")
@@ -415,8 +433,12 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
     ]
     if cband_cls is not None:
         layers_spec.append(("cband_change", cband_cls, 0, "class"))
+    if drained_lc is not None:
+        layers_spec.append(("drained_landcover", drained_lc, 0, "class"))
+    if pop_density is not None:
+        layers_spec.append(("population", pop_density, np.nan, "people/ha"))
     for name, arr, nod, units in layers_spec:
-        _write_cog(out_dir / f"{name}.tif", arr.astype("float32") if units == "dB" else arr, pair.transform, pair.crs, nod, {**tags, "units": units}, db=units == "dB")
+        _write_cog(out_dir / f"{name}.tif", arr.astype("float32") if units in ("dB", "people/ha") else arr, pair.transform, pair.crs, nod, {**tags, "units": units}, db=units in ("dB", "people/ha"))
     if occurrence is not None:
         _write_cog(out_dir / "jrc_occurrence.tif", occurrence, pair.transform, pair.crs, 255, {"units": "percent"})
 
@@ -434,7 +456,7 @@ def run_analysis(study_area_id: str, earlier_id: str, later_id: str, user_config
         "id": analysis_id,
         "status": "complete",
         "created_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-        "study_area": {k: area[k] for k in ("id", "name", "bbox", "geometry", "research_question", "subset") if k in area},
+        "study_area": {k: area[k] for k in ("id", "name", "bbox", "geometry", "research_question", "subset", "story", "category") if k in area},
         "sensor": "NISAR",
         "config": cfg,
         "earlier": {k: v for k, v in e.items() if k not in ("file_metadata", "processed")},
