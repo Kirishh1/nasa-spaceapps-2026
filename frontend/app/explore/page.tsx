@@ -135,6 +135,13 @@ export default function Workspace() {
           const hit = list.find((x) => x.earlier_id === eid && x.later_id === lid && !x.subset);
           if (hit) finishRef.current?.(hit.id, true);
         }).catch(() => undefined);
+      } else {
+        // the deployment may ship a stored result without its source frames: open it read-only
+        api.analyses(areaId).then((list) => {
+          const full = list.filter((x) => !x.subset);
+          const hit = (feat && full.find((x) => x.earlier_date === feat[0] && x.later_date === feat[1])) || full[0];
+          if (hit) finishRef.current?.(hit.id, true);
+        }).catch(() => undefined);
       }
     }).catch(() => setObsStatus("error"));
     api.observations(areaId, "RCM").then((r) => setRcmReason(r.status === "available" ? null : r.reason ?? "No RCM data.")).catch(() => setRcmReason("RCM availability could not be checked."));
