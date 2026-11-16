@@ -177,7 +177,7 @@ data/      raw/ processed/ reference/   (git-ignored; created by the scripts)
 - Comparing NISAR's change map with an independent Sentinel-1 C-band change map (OPERA RTC-S1, orbit 41, 2026-06-19 → 2026-10-12) on 100 m cells, the bands agree on **46%** of cells.
 - **Herbaceous wetland (66,628 cells): agreement 32.5% (95% interval 27–38%, κ 0.05, near chance)**, with C-band alone reporting change on 62.1% of cells. This holds across cell sizes (100/200 m), aggregation rules and ΔB thresholds of 2–4 dB (31–34% agreement, C-only 55–64%). Permanent water is similar (31.5%, C-only 56.6%).
 - Tree cover agrees on 90.8% of cells, but **88.9 points of that are both bands seeing no change** (κ 0.27); it ranges 75–99% with the aggregation rule, so it is not a robust headline.
-- The pattern recurs in the drying Okavango delta (34%, κ 0.05) but not in the flooding Tonlé Sap (96%, κ 0.45): the bands disagree most where shallow vegetated water drains.
+- **Across sites**, the most consistent difference is on permanent open water: C-band alone reports change on 57% (Sylhet), 58% (Tonlé Sap) and 25% (Atchafalaya) of cells, L-band alone on ≤ 7%. In vegetated wetland the bands also disagree, but the direction depends on the site: C-band-only change dominates in Sylhet (62%), **L-band**-only change in the drying Okavango (63%, mostly brightening), and in Tonlé Sap's large flood both bands see the same darkening (96% agreement). So there is no single "C-band misses it" mechanism; the bands respond to different things in vegetated water.
 - This is consistent with known physics: C-band (5.6 cm) is more sensitive than L-band (24 cm) to wind ripples and emergent vegetation. The bands also differ in polarization (HH vs VV), geometry and dates (≤ 4 days), so it is a plausible explanation, not a proven one.
 
 **5. An independent instrument confirms the drainage.** NASA/CNES SWOT measures lake water *height* directly.
@@ -204,7 +204,7 @@ data/      raw/ processed/ reference/   (git-ignored; created by the scripts)
 - **281 km² of cropland** (ESA WorldCover 2021) came out of the water (268–294 km² for water thresholds ±1 dB; total receded 289–327 km²). Haor farmers prepare boro rice seedbeds as water recedes in November–December, so the map ("What drained" view) shows where planting can start.
 - About **1.26 million people** live in the basin (WorldPop 2025). Nearly all live within 1 km of land that drained (87% within 200 m), so proximity does not single out an affected group; it is context, not a measure of harm.
 - Roughly **2.1 km³** of water left the basin. This is an order of magnitude: mean water area × SWOT level drop.
-- NASA SMAP shows soil moisture falling from 0.45 (June) to 0.23 m³/m³ (October), which is why some land backscatter also changed.
+- NASA SMAP monthly-mean soil moisture fell from 0.45 (June) to 0.23 m³/m³ (October), which is why some land backscatter also changed.
 
 ## More study areas (same pipeline, no per-area tuning)
 

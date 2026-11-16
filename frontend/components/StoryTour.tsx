@@ -26,7 +26,7 @@ export function buildTour(r: AnalysisResult): TourStep[] {
   const sc = r.sensor_comparison;
   const swp = r.validation.swot?.status === "available" ? r.validation.swot.passes ?? [] : [];
   const wet = (sc.by_landcover ?? []).find((x) => x.class === 90);
-  const trees = (sc.by_landcover ?? []).find((x) => x.class === 10);
+  const water80 = (sc.by_landcover ?? []).find((x) => x.class === 80 && x.cells >= 1000);
   const steps: TourStep[] = [
     {
       title: "The problem",
@@ -51,7 +51,7 @@ export function buildTour(r: AnalysisResult): TourStep[] {
     steps.push({
       title: "Is it right?",
       body: (opt
-        ? `We checked the ${day(opt.nisar_date)} water map against an independent NASA OPERA map from a cloud-free optical satellite one day later: F1 ${opt.open_water.f1?.toFixed(2)}, IoU ${opt.open_water.iou?.toFixed(2)}. Shifting the threshold by ±3 dB keeps F1 above ${Math.min(...(opt.threshold_sensitivity ?? []).map((x) => x.f1 ?? 1)).toFixed(2)}.`
+        ? `We checked the ${day(opt.nisar_date)} water map against an independent NASA OPERA map from a cloud-free optical satellite ${opt.offset_days === 0 ? "the same day" : `${opt.offset_days} day${opt.offset_days === 1 ? "" : "s"} apart`}: F1 ${opt.open_water.f1?.toFixed(2)}, IoU ${opt.open_water.iou?.toFixed(2)}. Shifting the threshold by ±3 dB keeps F1 between ${Math.min(...(opt.threshold_sensitivity ?? []).map((x) => x.f1 ?? 1)).toFixed(2)} and ${Math.max(...(opt.threshold_sensitivity ?? []).map((x) => x.f1 ?? 0)).toFixed(2)}. This scores one date's water map; where exactly water changed is less certain (see the validation panel).`
         : `We checked the water maps against independent NASA OPERA surface-water maps from within a day of each pass.`) +
         (swp.length ? ` Separately, NASA/CNES's SWOT satellite measured the lakes' water height: every lake it saw fell, by a median of ${swp.map((p) => `${Math.abs(p.median_change_m).toFixed(2)} m`).join(" and ")}.` : ""),
       view: "water",
@@ -62,9 +62,19 @@ export function buildTour(r: AnalysisResult): TourStep[] {
     steps.push({
       title: "Two wavelengths, two answers",
       body:
-        (s1 ? `Over the same pixels on ${day(s1.date)}, NISAR's L-band maps ${pct(s1.open_water.predicted_fraction)} as open water and Sentinel-1's C-band only ${pct(s1.open_water.reference_fraction)}${opt ? `; the optical map sides with L-band (${pct(opt.open_water.reference_fraction)} vs NISAR's ${pct(opt.open_water.predicted_fraction)})` : ""}. ` : "") +
-        (sc.status === "available" && wet && trees
-          ? `Their change maps agree on ${trees.agree_percent}% of tree-covered cells but only ${wet.agree_percent}% of herbaceous wetland, where C-band alone reports change on ${wet.c_band_only_percent}%. Short C-band waves react to wind ripples and emergent plants on shallow water; long L-band waves largely do not.`
+        (s1 ? `Over the same pixels on ${day(s1.date)}, NISAR's L-band maps ${pct(s1.open_water.predicted_fraction)} as open water and Sentinel-1's C-band ${pct(s1.open_water.reference_fraction)}.` +
+          (opt && opt.nisar_date === s1.nisar_date
+            ? ` The optical map (${pct(opt.open_water.reference_fraction)}) is closer to ${Math.abs((opt.open_water.predicted_fraction ?? 0) - (opt.open_water.reference_fraction ?? 0)) < Math.abs((s1.open_water.reference_fraction ?? 0) - (opt.open_water.reference_fraction ?? 0)) ? "L-band" : "C-band"}. `
+            : " ") : "") +
+        (sc.status === "available" && wet
+          ? `In herbaceous wetland their change maps agree on ${wet.agree_percent}% of cells (κ ${wet.kappa != null ? wet.kappa.toFixed(2) : "–"}); ` +
+            (wet.c_band_only_percent > 2 * wet.l_band_only_percent && wet.c_band_only_percent > 20
+              ? `C-band alone reports change on ${wet.c_band_only_percent}%. `
+              : wet.l_band_only_percent > 2 * wet.c_band_only_percent && wet.l_band_only_percent > 20
+                ? `L-band alone reports change on ${wet.l_band_only_percent}%. `
+                : "") +
+            (water80 && water80.c_band_only_percent > 20 ? `On permanent open water C-band alone reports change on ${water80.c_band_only_percent}%, consistent with its sensitivity to wind ripples. ` : "") +
+            "The bands also differ in polarization and viewing geometry, so these are plausible explanations, not proven ones."
           : ""),
       view: sc.status === "available" ? "lc" : "water",
       fold: "fold-lband",

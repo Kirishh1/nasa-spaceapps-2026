@@ -165,7 +165,16 @@ the accuracy of the change map.
 
 - **Tree cover's 91% is mostly agreement that nothing changed** (88.9% both stable, 1.9% both changed; κ 0.269). Across cell sizes (100/200 m) and aggregation rules (20/30/50%) it ranges 75.5–98.6%, so it is *not* a robust headline.
 - **The herbaceous-wetland result is robust:** agreement 31.4–34.1% across those variants and 32.5–34.0% for ΔB thresholds of 2/3/4 dB, with C-band-only change on 60.6–64.0% of cells and κ ≈ 0.03–0.06 (near chance).
-- **Across study areas:** the same pattern appears in the drying Okavango delta (herbaceous wetland agreement 34%, κ 0.05), but not in the flooding Tonlé Sap (96%, κ 0.45; tree cover κ 0.72). L- and C-band disagree most where shallow vegetated water drains, and agree where large areas flood.
+- **Across study areas** (featured pair of each; C-band pair from the nearest same-orbit Sentinel-1 dates):
+
+  | Site | Herbaceous wetland: agree / C-only / L-only | Permanent water: agree / C-only / L-only |
+  |---|---|---|
+  | Sylhet (draining) | 32.5% / 62.1% / 4.3% (κ 0.05) | 31.5% / 56.6% / 6.9% |
+  | Okavango (drying) | 33.7% / 2.2% / **63.1%** (κ 0.04) | (< 1,000 cells) |
+  | Tonlé Sap (flooding) | 96.0% / 3.0% / 0.8% (κ 0.45; 94% both darkened) | 39.6% / 58.1% / 1.0% |
+  | Atchafalaya (little change) | 64.6% / 14.0% / 19.1% (κ 0.29; 2,923 cells) | 74.0% / 24.9% / 1.0% |
+
+  The consistent cross-site signal is on **open water: C-band-only change at all three sites with that class (25–58%), L-band-only ≤ 7%**, as expected if C-band is more sensitive to wind roughening. In vegetated wetland the disagreement is large but **its direction is site-dependent** (C-only in Sylhet, L-only in the Okavango, agreement during Tonlé Sap's flood), so it does not support a single mechanism. A plausible reading for the Okavango is L-band responding to water draining beneath reeds that C-band's canopy return does not show; this is untested.
 - **Interpretation (not proven):** C-band (5.6 cm) is more sensitive than L-band (24 cm) to wind ripples and emergent vegetation on shallow water. The bands also differ in polarization (HH vs VV), incidence geometry and dates (up to 4 days), any of which can contribute.
 
 ### 4. Impact numbers: sensitivity
