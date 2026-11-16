@@ -353,19 +353,19 @@ export function InterpretationSheet({ area, result, earlier, later, storedAt }: 
                 <table className="mt-2 w-full text-[11.5px]">
                   <thead><tr className="text-ink-3">
                     <th className="py-1 text-left font-normal">Land cover</th>
-                    <th className="text-right font-normal" title="Both bands: no significant change">Both stable</th>
-                    <th className="text-right font-normal" title="Both bands: same change direction">Both changed</th>
-                    <th className="text-right font-normal">C only</th>
-                    <th className="text-right font-normal" title="Cohen's kappa: agreement beyond chance (0 = chance, 1 = perfect)">κ</th>
+                    <th className="pl-2 text-right font-normal" title="Both bands: no significant change">Both stable</th>
+                    <th className="pl-2 text-right font-normal" title="Both bands: same change direction">Both changed</th>
+                    <th className="pl-2 text-right font-normal">C only</th>
+                    <th className="pl-2 text-right font-normal" title="Cohen's kappa: agreement beyond chance (0 = chance, 1 = perfect)">κ</th>
                   </tr></thead>
                   <tbody className="num">
                     {rows.map((r) => (
                       <tr key={r.class} className="border-t border-rule-soft" title={`${r.cells.toLocaleString()} cells · total agreement ${r.agree_percent}%${r.agree_percent_ci95 ? ` (95% CI ${r.agree_percent_ci95[0]}–${r.agree_percent_ci95[1]}%)` : ""}`}>
                         <td className="py-1 font-sans text-ink-2">{r.name}<span className="block text-[10.5px] text-ink-3">{r.cells.toLocaleString()} cells</span></td>
-                        <td className="text-right text-ink-2">{r.agree_stable_percent ?? "–"}%</td>
-                        <td className="text-right text-ink">{r.agree_change_percent ?? "–"}%</td>
-                        <td className="text-right text-ink">{r.c_band_only_percent}%</td>
-                        <td className="text-right text-ink-2">{r.kappa ?? "–"}</td>
+                        <td className="pl-2 text-right text-ink-2">{r.agree_stable_percent ?? "–"}%</td>
+                        <td className="pl-2 text-right text-ink">{r.agree_change_percent ?? "–"}%</td>
+                        <td className="pl-2 text-right text-ink">{r.c_band_only_percent}%</td>
+                        <td className="pl-2 text-right text-ink-2">{r.kappa != null ? r.kappa.toFixed(2) : "–"}</td>
                       </tr>
                     ))}
                   </tbody>
